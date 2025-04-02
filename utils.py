@@ -1,6 +1,7 @@
 import pandas as pd
 import os
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 
 DATA_FILE = "data/journeys.csv"
 
@@ -34,6 +35,87 @@ def validate_input(start_reading, end_reading, journey_date):
         return "Journey date cannot be in the future."
     
     return None
+
+def generate_journey_summary(journey_data):
+    """Generate a personalized journey summary with appropriate icons."""
+    
+    # Extract journey details
+    distance = journey_data['Distance']
+    purpose = journey_data['Purpose'].lower()
+    fuel = journey_data.get('Fuel_Consumption')
+    date = journey_data['Date']
+    
+    # Base summary parts
+    summary_parts = []
+    
+    # Set primary icon based on journey purpose keywords
+    primary_icon = "🚗"  # Default car icon
+    
+    # Match common journey purposes to appropriate icons
+    if any(word in purpose for word in ["work", "office", "job", "business"]):
+        primary_icon = "💼"
+    elif any(word in purpose for word in ["shop", "store", "mall", "grocery", "market"]):
+        primary_icon = "🛒"
+    elif any(word in purpose for word in ["school", "college", "university", "class"]):
+        primary_icon = "🎓"
+    elif any(word in purpose for word in ["vacation", "holiday", "trip", "travel"]):
+        primary_icon = "🏖️"
+    elif any(word in purpose for word in ["family", "friend", "visit", "relative"]):
+        primary_icon = "👪"
+    elif any(word in purpose for word in ["doctor", "hospital", "medical", "health"]):
+        primary_icon = "🏥"
+    elif any(word in purpose for word in ["gym", "exercise", "workout", "fitness"]):
+        primary_icon = "🏋️"
+    elif any(word in purpose for word in ["restaurant", "dinner", "lunch", "eat", "food"]):
+        primary_icon = "🍽️"
+    
+    # Add primary journey purpose statement with icon
+    summary_parts.append(f"{primary_icon} You drove {distance:.1f} km for {journey_data['Purpose']}")
+    
+    # Add distance classification with icon
+    if distance < 5:
+        summary_parts.append("🏠 Just a quick local trip")
+    elif distance < 20:
+        summary_parts.append("🏙️ A nice city drive")
+    elif distance < 100:
+        summary_parts.append("🛣️ A solid road trip")
+    else:
+        summary_parts.append("🗺️ An impressive long-distance journey")
+    
+    # Add fuel efficiency comment if fuel data exists
+    if fuel and fuel > 0:
+        efficiency = distance / fuel  # km/L
+        if efficiency > 15:
+            summary_parts.append("🌱 Great fuel efficiency!")
+        elif efficiency > 10:
+            summary_parts.append("⛽ Decent fuel economy")
+        else:
+            summary_parts.append("💨 Fuel-intensive drive")
+    
+    # Add time-of-day context
+    today = datetime.now().date()
+    days_diff = 0
+    try:
+        if hasattr(date, 'days'):  # Already a timedelta
+            days_diff = date.days
+        else:  # It's a date
+            days_diff = (today - date).days
+    except:
+        # Handle the case where date might not be a valid date object
+        pass
+    
+    if days_diff == 0:
+        summary_parts.append("🗓️ Completed today")
+    elif days_diff == 1:
+        summary_parts.append("🕰️ Completed yesterday")
+    elif days_diff < 7:
+        summary_parts.append("📅 Completed earlier this week")
+    elif days_diff < 30:
+        summary_parts.append("📆 Completed earlier this month")
+    else:
+        summary_parts.append("🗓️ Completed some time ago")
+    
+    return summary_parts
 
 def calculate_statistics(df):
     """Calculate journey statistics."""
