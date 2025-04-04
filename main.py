@@ -64,7 +64,7 @@ def main():
         show_statistics(df)
 
 def display_journey_summary(journey_data):
-    """Display a personalized journey summary with cute icons"""
+    """Display a personalized journey summary with cute icons and engaging visualizations"""
     st.markdown("<h2 style='text-align: center; color: #3366CC; text-shadow: 1px 1px 2px #aaa;'>✨ Your Journey Summary ✨</h2>", unsafe_allow_html=True)
     
     # Get summary parts with appropriate icons
@@ -72,19 +72,42 @@ def display_journey_summary(journey_data):
     
     # Create a card-like container for the summary
     with st.container():
-        # Apply custom styling to make it look like a card
+        # Apply custom styling to make it look like a card with enhanced animations and visual effects
         st.markdown("""
         <style>
+        @keyframes gradient-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
         .journey-card {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 15px;
-            padding: 25px;
-            margin: 20px 0;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-left: 8px solid #4361EE;
+            border-radius: 18px;
+            padding: 30px;
+            margin: 25px 0;
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
             position: relative;
             overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
         }
+        
         .journey-card::before {
             content: "";
             position: absolute;
@@ -92,11 +115,14 @@ def display_journey_summary(journey_data):
             left: -2px;
             right: -2px;
             bottom: -2px;
-            background: linear-gradient(45deg, #4361EE, #3F37C9, #4CC9F0);
+            background: linear-gradient(45deg, #4361EE, #3F37C9, #4CC9F0, #3F37C9, #4361EE);
+            background-size: 400% 400%;
             z-index: -1;
-            border-radius: 17px;
-            opacity: 0.6;
+            border-radius: 20px;
+            opacity: 0.65;
+            animation: gradient-animation 15s ease infinite;
         }
+        
         .journey-card h3 {
             color: #3F37C9;
             margin-bottom: 20px;
@@ -104,49 +130,215 @@ def display_journey_summary(journey_data):
             font-weight: bold;
             text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
         }
+        
         .journey-detail {
             display: flex;
             align-items: center;
             margin-bottom: 12px;
-            padding: 8px 12px;
+            padding: 10px 15px;
             background-color: rgba(255, 255, 255, 0.7);
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease-in-out;
+            border-radius: 10px;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease-out forwards;
+            opacity: 0;
         }
+        
+        .journey-detail:nth-child(1) { animation-delay: 0.1s; }
+        .journey-detail:nth-child(2) { animation-delay: 0.2s; }
+        .journey-detail:nth-child(3) { animation-delay: 0.3s; }
+        .journey-detail:nth-child(4) { animation-delay: 0.4s; }
+        .journey-detail:nth-child(5) { animation-delay: 0.5s; }
+        .journey-detail:nth-child(6) { animation-delay: 0.6s; }
+        .journey-detail:nth-child(7) { animation-delay: 0.7s; }
+        
         .journey-detail:hover {
-            transform: translateX(5px);
+            transform: translateX(8px) scale(1.02);
             background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.08);
         }
+        
         .detail-icon {
-            font-size: 1.3rem;
-            margin-right: 10px;
-            min-width: 24px;
+            font-size: 1.5rem;
+            margin-right: 12px;
+            min-width: 28px;
             text-align: center;
+            animation: float 3s ease-in-out infinite;
         }
+        
         .detail-label {
             font-weight: 600;
             color: #333;
-            margin-right: 8px;
+            margin-right: 10px;
         }
+        
         .detail-value {
             color: #4361EE;
             font-weight: 500;
+            position: relative;
+            padding-bottom: 2px;
         }
+        
+        .detail-value::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background-color: #4CC9F0;
+            transition: width 0.3s ease;
+        }
+        
+        .journey-detail:hover .detail-value::after {
+            width: 100%;
+        }
+        
+        .journey-header {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #3F37C9;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+            position: relative;
+            padding: 10px 5px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .journey-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 25%;
+            right: 25%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #4CC9F0, transparent);
+        }
+        
+        .insight-section {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px dashed rgba(67, 97, 238, 0.3);
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        .insight-title {
+            text-align: center;
+            color: #4361EE;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .insight-title::before, .insight-title::after {
+            content: "✨";
+            margin: 0 10px;
+            font-size: 0.9rem;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .insight-bubble-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
         .insight-bubble {
             background-color: #f1f8ff;
             border-radius: 20px;
-            padding: 8px 15px;
-            margin: 10px 0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 10px 18px;
+            margin: 5px;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.05);
             display: inline-block;
             border-left: 3px solid #4CC9F0;
             font-style: italic;
+            transition: all 0.3s ease;
+            animation: fadeIn 1s ease-out forwards;
+            opacity: 0;
         }
-        .journey-header {
+        
+        .insight-bubble:nth-child(1) { animation-delay: 0.8s; }
+        .insight-bubble:nth-child(2) { animation-delay: 0.9s; }
+        .insight-bubble:nth-child(3) { animation-delay: 1.0s; }
+        .insight-bubble:nth-child(4) { animation-delay: 1.1s; }
+        .insight-bubble:nth-child(5) { animation-delay: 1.2s; }
+        .insight-bubble:nth-child(6) { animation-delay: 1.3s; }
+        
+        .insight-bubble:hover {
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+            background-color: #e6f4ff;
+        }
+        
+        .journey-footer {
             text-align: center;
-            margin-bottom: 15px;
-            font-size: 1.4rem;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #777;
+            font-style: italic;
+            animation: fadeIn 1.5s ease-out;
+        }
+        
+        .eco-status {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 5px 15px;
+            background: linear-gradient(90deg, #E0F7FA, #B2EBF2);
+            border-radius: 20px;
+            font-weight: 500;
+            color: #006064;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .fact-box {
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(76, 201, 240, 0.1));
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 3px solid #4CC9F0;
+            font-style: italic;
+            animation: fadeIn 1.3s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .fact-box::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                        rgba(255,255,255, 0) 0%, 
+                        rgba(255,255,255, 0.5) 50%, 
+                        rgba(255,255,255, 0) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 3s infinite;
+        }
+        
+        .tag-item {
+            display: inline-block;
+            margin-right: 5px;
+            padding: 4px 10px;
+            background-color: rgba(67, 97, 238, 0.1);
+            border-radius: 15px;
+            font-size: 0.9rem;
+            color: #4361EE;
+            transition: all 0.3s ease;
+        }
+        
+        .tag-item:hover {
+            background-color: rgba(67, 97, 238, 0.2);
+            transform: translateY(-3px);
         }
         </style>
         """, unsafe_allow_html=True)
@@ -194,7 +386,7 @@ def display_journey_summary(journey_data):
         if tags and not pd.isna(tags) and tags.strip():
             tag_list = utils.parse_tags(tags)
             if tag_list:
-                tags_display = ", ".join(tag_list)
+                tags_display = " ".join([f'<span class="tag-item">#{tag}</span>' for tag in tag_list])
                 st.markdown(f"""
                 <div class="journey-detail">
                     <span class="detail-icon">🏷️</span>
@@ -207,11 +399,31 @@ def display_journey_summary(journey_data):
         if journey_data.get('Fuel_Consumption') and journey_data['Fuel_Consumption'] > 0:
             fuel_consumption = journey_data['Fuel_Consumption']
             fuel_economy = journey_data['Distance'] / fuel_consumption
+            
+            # Determine eco status
+            eco_status = "⭐"
+            eco_text = "Needs improvement"
+            if fuel_economy > 15:
+                eco_status = "⭐⭐⭐⭐⭐"
+                eco_text = "Excellent!"
+            elif fuel_economy > 12:
+                eco_status = "⭐⭐⭐⭐"
+                eco_text = "Very Good"
+            elif fuel_economy > 10:
+                eco_status = "⭐⭐⭐"
+                eco_text = "Good"
+            elif fuel_economy > 8:
+                eco_status = "⭐⭐"
+                eco_text = "Fair"
+            
             st.markdown(f"""
             <div class="journey-detail">
                 <span class="detail-icon">⛽</span>
                 <span class="detail-label">Fuel:</span>
-                <span class="detail-value">{fuel_consumption:.1f} L (Economy: {fuel_economy:.2f} km/L)</span>
+                <span class="detail-value">
+                    {fuel_consumption:.1f} L (Economy: {fuel_economy:.2f} km/L)
+                    <br><span class="eco-status">{eco_status} {eco_text}</span>
+                </span>
             </div>
             """, unsafe_allow_html=True)
             
@@ -228,20 +440,45 @@ def display_journey_summary(journey_data):
             
             # Display CO2 emissions
             co2 = utils.calculate_co2_emissions(journey_data['Distance'], fuel_consumption)
+            
+            # Determine eco impact
+            eco_impact = "🌿"
+            if co2 > 15:
+                eco_impact = "🌲"
+            elif co2 > 5:
+                eco_impact = "🌱"
+                
             st.markdown(f"""
             <div class="journey-detail">
                 <span class="detail-icon">🌍</span>
                 <span class="detail-label">CO₂ Emissions:</span>
-                <span class="detail-value">{co2:.1f} kg</span>
+                <span class="detail-value">{co2:.1f} kg {eco_impact}</span>
             </div>
             """, unsafe_allow_html=True)
         
         # Display additional context from summary parts (skip the first one as it's already shown)
-        st.markdown("<div style='margin-top: 20px; text-align: center;'><h4 style='color: #4361EE; font-size: 1.1rem;'>Journey Insights</h4></div>", unsafe_allow_html=True)
+        st.markdown('<div class="insight-section">', unsafe_allow_html=True)
+        st.markdown('<div class="insight-title">Journey Insights</div>', unsafe_allow_html=True)
+        
+        # Create a container for the insight bubbles
+        st.markdown('<div class="insight-bubble-container">', unsafe_allow_html=True)
+        
+        # Display each insight
         for part in summary_parts[1:]:
-            st.markdown(f"<div class='insight-bubble'>{part}</div>", unsafe_allow_html=True)
-            
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="insight-bubble">{part}</div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close insight-bubble-container
+        
+        # Add a fun fact in a special box
+        if len(summary_parts) > 5:  # Check if we have enough summary parts
+            fun_fact = summary_parts[-1]  # Usually the last one is a fun fact
+            st.markdown(f'<div class="fact-box">{fun_fact}</div>', unsafe_allow_html=True)
+        
+        # Add a footer
+        st.markdown('<div class="journey-footer">Track more journeys to improve your insights and eco-driving score!</div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)  # Close insight-section
+        st.markdown('</div>', unsafe_allow_html=True)  # Close journey-card
         
     # Add a separator
     st.markdown("<hr style='margin: 30px 0; border: 0; height: 1px; background: linear-gradient(to right, transparent, #4361EE, transparent);'>", unsafe_allow_html=True)
