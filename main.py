@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import os
+import utils
 from utils import load_data, save_data, calculate_statistics, validate_input, generate_journey_summary
 
 # Page configuration
@@ -177,14 +178,61 @@ def display_journey_summary(journey_data):
         </div>
         """, unsafe_allow_html=True)
         
+        # Display category if available
+        category = journey_data.get('Category', 'Personal')
+        category_icon = utils.get_category_icon(category)
+        st.markdown(f"""
+        <div class="journey-detail">
+            <span class="detail-icon">{category_icon}</span>
+            <span class="detail-label">Category:</span>
+            <span class="detail-value">{category}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display tags if available
+        tags = journey_data.get('Tags', '')
+        if tags and not pd.isna(tags) and tags.strip():
+            tag_list = utils.parse_tags(tags)
+            if tag_list:
+                tags_display = ", ".join(tag_list)
+                st.markdown(f"""
+                <div class="journey-detail">
+                    <span class="detail-icon">🏷️</span>
+                    <span class="detail-label">Tags:</span>
+                    <span class="detail-value">{tags_display}</span>
+                </div>
+                """, unsafe_allow_html=True)
+        
         # Display fuel info if available
         if journey_data.get('Fuel_Consumption') and journey_data['Fuel_Consumption'] > 0:
-            fuel_economy = journey_data['Distance'] / journey_data['Fuel_Consumption']
+            fuel_consumption = journey_data['Fuel_Consumption']
+            fuel_economy = journey_data['Distance'] / fuel_consumption
             st.markdown(f"""
             <div class="journey-detail">
                 <span class="detail-icon">⛽</span>
                 <span class="detail-label">Fuel:</span>
-                <span class="detail-value">{journey_data['Fuel_Consumption']:.1f} L (Economy: {fuel_economy:.2f} km/L)</span>
+                <span class="detail-value">{fuel_consumption:.1f} L (Economy: {fuel_economy:.2f} km/L)</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Display cost information if available
+            fuel_price = journey_data.get('Fuel_Price', utils.DEFAULT_FUEL_PRICE)
+            cost = journey_data.get('Cost', fuel_consumption * fuel_price)
+            st.markdown(f"""
+            <div class="journey-detail">
+                <span class="detail-icon">💰</span>
+                <span class="detail-label">Cost:</span>
+                <span class="detail-value">${cost:.2f} (${fuel_price:.2f}/L)</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Display CO2 emissions
+            co2 = utils.calculate_co2_emissions(journey_data['Distance'], fuel_consumption)
+            st.markdown(f"""
+            <div class="journey-detail">
+                <span class="detail-icon">🌍</span>
+                <span class="detail-label">CO₂ Emissions:</span>
+                <span class="detail-value">{co2:.1f} kg</span>
             </div>
             """, unsafe_allow_html=True)
         
@@ -301,14 +349,6 @@ def show_journey_form(df):
                     min_value=0.0,
                     step=0.1
                 )
-                fuel_consumption = st.number_input(
-                    "⛽ Fuel Consumption (liters, optional)",
-                    min_value=0.0,
-                    step=0.1
-                )
-                
-            with col2:
-                purpose = st.text_input("🚩 Journey Purpose")
                 end_reading = st.number_input(
                     "🔢 Ending Odometer Reading (km)",
                     min_value=0.0,
@@ -319,6 +359,42 @@ def show_journey_form(df):
                 if start_reading > 0 and end_reading > start_reading:
                     distance = end_reading - start_reading
                     st.markdown(f"<p style='color: #4361EE; font-size: 0.9rem;'>Distance will be: {distance:.1f} km</p>", unsafe_allow_html=True)
+                
+                # Journey category
+                category = st.selectbox(
+                    "🗂️ Journey Category",
+                    options=utils.JOURNEY_CATEGORIES,
+                    index=0
+                )
+                
+            with col2:
+                purpose = st.text_input("🚩 Journey Purpose")
+                
+                # Tags input with placeholder
+                tags = st.text_input(
+                    "🏷️ Tags (comma-separated)",
+                    placeholder="e.g., highway, rain, rush-hour"
+                )
+                
+                # Fuel information
+                fuel_consumption = st.number_input(
+                    "⛽ Fuel Consumption (liters, optional)",
+                    min_value=0.0,
+                    step=0.1
+                )
+                
+                # Fuel price with default
+                fuel_price = st.number_input(
+                    "💰 Fuel Price ($ per liter)",
+                    min_value=0.0,
+                    value=utils.DEFAULT_FUEL_PRICE,
+                    step=0.01
+                )
+                
+                # Show cost estimate if fuel consumption entered
+                if fuel_consumption > 0:
+                    cost = fuel_consumption * fuel_price
+                    st.markdown(f"<p style='color: #4361EE; font-size: 0.9rem;'>Estimated cost: ${cost:.2f}</p>", unsafe_allow_html=True)
             
             submit_button = st.form_submit_button("💾 Save Journey")
             
@@ -328,13 +404,26 @@ def show_journey_form(df):
                 if validation_error:
                     st.error(validation_error)
                 else:
+                    # Calculate journey cost
+                    distance = end_reading - start_reading
+                    cost = 0
+                    if fuel_consumption > 0:
+                        cost = utils.calculate_journey_cost(fuel_consumption, fuel_price)
+                    
+                    # Format tags
+                    tags_formatted = utils.format_tags_for_storage(utils.parse_tags(tags))
+                    
                     new_journey = {
                         'Date': journey_date,
                         'Start_Reading': start_reading,
                         'End_Reading': end_reading,
-                        'Distance': end_reading - start_reading,
+                        'Distance': distance,
                         'Purpose': purpose,
-                        'Fuel_Consumption': fuel_consumption if fuel_consumption > 0 else None
+                        'Category': category,
+                        'Tags': tags_formatted,
+                        'Fuel_Consumption': fuel_consumption if fuel_consumption > 0 else None,
+                        'Fuel_Price': fuel_price,
+                        'Cost': cost
                     }
                     
                     # Store the journey data in session state for summary display
@@ -410,29 +499,89 @@ def show_journey_history(df):
     with col1:
         sort_col = st.selectbox(
             "Sort by",
-            options=['Date', 'Distance', 'Start_Reading', 'End_Reading'],
+            options=['Date', 'Distance', 'Category', 'Cost', 'Start_Reading', 'End_Reading'],
             index=0
         )
     with col2:
         sort_order = st.radio("Sort order", ["Descending", "Ascending"], horizontal=True)
     
+    # Add category filter
+    if 'Category' in df.columns:
+        st.markdown("<p style='margin-top: 15px; margin-bottom: 5px;'>Filter by Category:</p>", unsafe_allow_html=True)
+        all_categories = ['All Categories'] + list(df['Category'].unique())
+        selected_category = st.selectbox(
+            "Category",
+            options=all_categories,
+            index=0,
+            label_visibility="collapsed"
+        )
+    
+    # Add tag filter if we have tags
+    if 'Tags' in df.columns and not df['Tags'].isna().all():
+        # Extract all unique tags from the dataframe
+        all_tags = []
+        for tags_str in df['Tags'].dropna():
+            if tags_str:
+                all_tags.extend(utils.parse_tags(tags_str))
+        
+        unique_tags = sorted(list(set(all_tags)))
+        
+        if unique_tags:
+            st.markdown("<p style='margin-top: 15px; margin-bottom: 5px;'>Filter by Tag:</p>", unsafe_allow_html=True)
+            selected_tag = st.selectbox(
+                "Tag",
+                options=['All Tags'] + unique_tags,
+                index=0,
+                label_visibility="collapsed"
+            )
+    
     st.markdown("</div>", unsafe_allow_html=True)
     
+    # Apply filters
+    filtered_df = df.copy()
+    
+    # Initialize default filter variables
+    selected_category = 'All Categories'
+    selected_tag = 'All Tags'
+    
+    # Apply category filter if available
+    if 'Category' in df.columns and 'selected_category' in locals():
+        if selected_category != 'All Categories':
+            filtered_df = filtered_df[filtered_df['Category'] == selected_category]
+    
+    # Apply tag filter if available
+    if 'Tags' in df.columns and 'selected_tag' in locals():
+        if selected_tag != 'All Tags':
+            filtered_df = filtered_df[filtered_df['Tags'].apply(
+                lambda x: selected_tag in utils.parse_tags(x) if pd.notna(x) else False
+            )]
+    
     # Apply sorting
-    df_sorted = df.sort_values(
+    df_sorted = filtered_df.sort_values(
         by=sort_col,
         ascending=(sort_order == "Ascending")
     )
     
     # Display the data with a caption
     st.markdown("<p class='section-title'>📊 All Recorded Journeys</p>", unsafe_allow_html=True)
+    # Format the dataframe for display
+    format_dict = {
+        'Distance': '{:.1f} km',
+        'Start_Reading': '{:.1f} km',
+        'End_Reading': '{:.1f} km',
+        'Fuel_Consumption': '{:.1f} L'
+    }
+    
+    # Add cost formatting if column exists
+    if 'Cost' in df_sorted.columns:
+        format_dict['Cost'] = '${:.2f}'
+    
+    # Add fuel price formatting if column exists
+    if 'Fuel_Price' in df_sorted.columns:
+        format_dict['Fuel_Price'] = '${:.2f}/L'
+    
     st.dataframe(
-        df_sorted.style.format({
-            'Distance': '{:.1f} km',
-            'Start_Reading': '{:.1f} km',
-            'End_Reading': '{:.1f} km',
-            'Fuel_Consumption': '{:.1f} L'
-        }),
+        df_sorted.style.format(format_dict),
         use_container_width=True
     )
     
@@ -530,16 +679,132 @@ def show_statistics(df):
     with col1:
         st.metric("Total Journeys", stats['total_journeys'])
         st.metric("Total Distance", f"{stats['total_distance']:.1f} km")
+        if 'total_cost' in stats:
+            st.metric("Total Cost", f"${stats['total_cost']:.2f}")
     
     with col2:
         st.metric("Average Journey Distance", f"{stats['avg_distance']:.1f} km")
         st.metric("Longest Journey", f"{stats['max_distance']:.1f} km")
+        if 'co2_emissions' in stats:
+            st.metric("CO₂ Emissions", f"{stats['co2_emissions']:.1f} kg")
     
     with col3:
         st.metric("Total Fuel Consumed", f"{stats['total_fuel']:.1f} L")
         st.metric("Average Fuel Economy", f"{stats['fuel_economy']:.2f} km/L")
+        eco_rating = "⭐" * min(5, max(1, int(stats['fuel_economy'] / 3)))  # 1-5 stars
+        st.metric("Eco-Driving Rating", eco_rating)
     
     st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Add category breakdown if available
+    if 'category_stats' in stats and not stats['category_stats'].empty:
+        st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+        st.markdown("<p class='stats-section-title'>🗂️ Journey Categories Analysis</p>", unsafe_allow_html=True)
+        
+        # Create a pie chart for categories
+        fig_cat = px.pie(
+            stats['category_stats'], 
+            values='Distance', 
+            names='Category',
+            title=None,
+            hole=0.4,
+            color_discrete_sequence=px.colors.sequential.Blues_r
+        )
+        
+        # Customize the pie chart
+        fig_cat.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(
+                family="Arial, sans-serif",
+                size=14,
+                color="#333333"
+            ),
+            margin=dict(t=30, b=30, l=30, r=30),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5
+            )
+        )
+        
+        # Display pie chart in a column layout
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.plotly_chart(fig_cat, use_container_width=True)
+        
+        # Display category statistics in text form
+        with col2:
+            st.markdown("<h4 style='color: #4361EE; margin-top: 20px;'>Category Details</h4>", unsafe_allow_html=True)
+            for _, row in stats['category_stats'].iterrows():
+                category_icon = utils.get_category_icon(row['Category'])
+                st.markdown(f"""
+                <div style='margin-bottom: 15px; padding: 10px; background-color: rgba(240, 248, 255, 0.6); border-radius: 8px;'>
+                    <div style='font-weight: 600; color: #333;'>{category_icon} {row['Category']}</div>
+                    <div>Distance: <span style='color: #4361EE; font-weight: 500;'>{row['Distance']:.1f} km</span></div>
+                    <div>Cost: <span style='color: #4361EE; font-weight: 500;'>${row['Cost']:.2f}</span></div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Environmental impact section
+    if 'co2_emissions' in stats and stats['co2_emissions'] > 0:
+        st.markdown("<div class='chart-container' style='border-left: 4px solid #4CC9F0;'>", unsafe_allow_html=True)
+        st.markdown("<p class='stats-section-title'>🌱 Environmental Impact</p>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Create a gauge chart for eco-score
+            eco_score = min(100, max(0, (15 / max(1, stats['fuel_economy'])) * 100))
+            eco_color = "#4CC9F0" if eco_score > 70 else "#FFA500" if eco_score > 40 else "#FF4560"
+            
+            # Use a numeric gauge display
+            st.markdown(f"""
+            <div style='text-align: center; padding: 20px;'>
+                <div style='font-size: 1.2rem; margin-bottom: 10px; color: #333;'>Eco-Driving Score</div>
+                <div style='font-size: 3rem; font-weight: bold; color: {eco_color};'>{int(eco_score)}</div>
+                <div style='font-size: 1.5rem; color: #777;'>/100</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Eco-driving tips based on score
+            if eco_score > 70:
+                eco_tip = "Great job! Your driving is eco-friendly."
+            elif eco_score > 40:
+                eco_tip = "Good, but there's room for improvement. Try to drive at a steady pace."
+            else:
+                eco_tip = "Your fuel economy could use improvement. Consider gentle acceleration and braking."
+            
+            st.markdown(f"""
+            <div style='background-color: #f0f8ff; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center;'>
+                <span style='font-style: italic;'>{eco_tip}</span>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            # CO2 comparison
+            tree_absorption = stats['co2_emissions'] / 21  # Average tree absorbs ~21kg CO2 per year
+            st.markdown(f"""
+            <div style='padding: 10px; background-color: rgba(240, 248, 255, 0.6); border-radius: 8px; margin-bottom: 15px;'>
+                <div style='font-weight: 600; color: #333; margin-bottom: 8px;'>Total CO₂ Emissions</div>
+                <div style='font-size: 2rem; font-weight: bold; color: #4361EE;'>{stats['co2_emissions']:.1f} kg</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div style='padding: 10px; background-color: rgba(240, 248, 255, 0.6); border-radius: 8px;'>
+                <div style='font-weight: 600; color: #333; margin-bottom: 8px;'>Equivalent to</div>
+                <div style='margin-bottom: 5px;'>🌳 {tree_absorption:.1f} trees working for a year</div>
+                <div style='margin-bottom: 5px;'>💡 {stats['co2_emissions'] * 3.3:.1f} hours of LED bulb use</div>
+                <div style='margin-bottom: 5px;'>📱 {stats['co2_emissions'] * 55:.1f} smartphone charges</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Monthly distance chart in its own styled container
     st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
