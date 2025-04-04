@@ -462,6 +462,102 @@ def calculate_co2_emissions(distance, fuel_consumption=None, vehicle_type='mediu
         factor = emissions_factors.get(vehicle_type.lower(), emissions_factors['medium'])
         return distance * factor
 
+def calculate_carbon_offset_options(co2_emissions):
+    """
+    Calculate carbon offset options based on CO2 emissions.
+    
+    Parameters:
+    - co2_emissions: CO2 emissions in kg
+    
+    Returns a dictionary with offset options:
+    - trees: Number of trees to plant (1 tree absorbs ~21kg CO2 per year)
+    - renewable_energy: kWh of renewable energy to fund
+    - offset_cost: Approximate cost in USD to offset this carbon footprint
+    - suggestions: List of specific carbon offset suggestions with descriptions and costs
+    """
+    if co2_emissions <= 0:
+        return {
+            'trees': 0,
+            'renewable_energy': 0,
+            'offset_cost': 0,
+            'suggestions': []
+        }
+    
+    # Calculate number of trees needed (rounded up)
+    # Average tree absorbs ~21kg CO2 per year
+    trees_needed = max(1, round(co2_emissions / 21))
+    
+    # Calculate renewable energy equivalent (kWh)
+    # 1 kWh from renewable sources saves roughly 0.5kg CO2 compared to fossil fuels
+    renewable_energy = round(co2_emissions * 2)
+    
+    # Approximate offset cost (USD)
+    # Carbon offset programs typically charge $10-15 per ton of CO2 (or $0.01-0.015 per kg)
+    offset_cost = round(co2_emissions * 0.012, 2)  # ~$12 per ton
+    
+    # Generate specific offset suggestions
+    suggestions = [
+        {
+            'name': 'Tree Planting',
+            'description': f'Plant {trees_needed} tree{"s" if trees_needed > 1 else ""} to absorb your carbon emissions over one year',
+            'cost': round(trees_needed * 4, 2),  # ~$4 per tree planting
+            'icon': '🌳',
+            'impact': f'Absorbs {co2_emissions:.1f}kg CO₂ per year',
+            'details': 'Trees capture carbon dioxide through photosynthesis and store it as biomass'
+        },
+        {
+            'name': 'Renewable Energy',
+            'description': f'Fund {renewable_energy} kWh of clean energy projects',
+            'cost': round(renewable_energy * 0.015, 2),  # ~$0.015 per kWh
+            'icon': '☀️',
+            'impact': f'Prevents {co2_emissions:.1f}kg CO₂ from fossil fuels',
+            'details': 'Supports wind, solar and hydroelectric power projects that replace fossil fuel energy'
+        },
+        {
+            'name': 'Forest Conservation',
+            'description': 'Protect existing forest land from deforestation',
+            'cost': round(co2_emissions * 0.01, 2),  # ~$10 per ton
+            'icon': '🌲',
+            'impact': f'Preserves forests that absorb CO₂',
+            'details': 'Helps fund protected areas and supports sustainable forest management'
+        }
+    ]
+    
+    # If emissions are very small, adjust the suggestions to be more appropriate
+    if co2_emissions < 5:
+        small_emission_suggestions = [
+            {
+                'name': 'Eco Habits',
+                'description': 'Adopt eco-friendly daily habits to balance your carbon footprint',
+                'cost': 0.00,
+                'icon': '🌱',
+                'impact': 'Offsets small emissions through daily actions',
+                'details': 'Simple acts like using reusable bottles, reducing food waste, and turning off lights'
+            }
+        ]
+        suggestions.append(small_emission_suggestions[0])
+    
+    # For larger emissions, add more substantial offset options
+    if co2_emissions > 20:
+        large_emission_suggestions = [
+            {
+                'name': 'Sustainable Agriculture',
+                'description': 'Support climate-friendly farming practices',
+                'cost': round(co2_emissions * 0.013, 2),
+                'icon': '🌾',
+                'impact': f'Reduces emissions from food production',
+                'details': 'Funds regenerative agriculture that sequesters carbon in soil'
+            }
+        ]
+        suggestions.append(large_emission_suggestions[0])
+    
+    return {
+        'trees': trees_needed,
+        'renewable_energy': renewable_energy,
+        'offset_cost': offset_cost,
+        'suggestions': suggestions
+    }
+
 def calculate_statistics(df):
     """Calculate journey statistics."""
     stats = {
@@ -491,6 +587,9 @@ def calculate_statistics(df):
         lambda row: calculate_co2_emissions(row['Distance'], row.get('Fuel_Consumption')),
         axis=1
     ).sum()
+    
+    # Calculate carbon offset options
+    stats['carbon_offset_options'] = calculate_carbon_offset_options(stats['co2_emissions'])
     
     # Calculate monthly distance
     df['Month'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m')

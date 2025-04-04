@@ -18,6 +18,14 @@ if 'show_success' not in st.session_state:
     st.session_state.show_success = False
 if 'last_journey' not in st.session_state:
     st.session_state.last_journey = None
+if 'carbon_offsets' not in st.session_state:
+    st.session_state.carbon_offsets = []
+if 'offset_selected' not in st.session_state:
+    st.session_state.offset_selected = None
+if 'offset_amount' not in st.session_state:
+    st.session_state.offset_amount = 0
+if 'total_offset' not in st.session_state:
+    st.session_state.total_offset = 0
 
 def main():
     # Apply global styling
@@ -62,6 +70,363 @@ def main():
         show_journey_history(df)
     else:
         show_statistics(df)
+
+def display_carbon_offset_options(co2_emissions):
+    """Display carbon offset options with interactive animations."""
+    # Calculate offset options
+    offset_options = utils.calculate_carbon_offset_options(co2_emissions)
+    
+    # No need to show if there are no emissions
+    if co2_emissions <= 0:
+        return
+    
+    # Add the CSS for carbon offset animations and styling
+    st.markdown("""
+    <style>
+    @keyframes greenWave {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
+        100% { transform: translateY(0px); }
+    }
+    
+    @keyframes growAndShrink {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes leafShimmer {
+        0% { filter: hue-rotate(0deg) brightness(1); }
+        50% { filter: hue-rotate(20deg) brightness(1.2); }
+        100% { filter: hue-rotate(0deg) brightness(1); }
+    }
+    
+    @keyframes carbonOffsetFadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes pulseGreen {
+        0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+    }
+    
+    @keyframes slowSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .carbon-offset-container {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin: 25px 0;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
+        animation: carbonOffsetFadeIn 0.7s ease-out;
+    }
+    
+    .offset-header {
+        text-align: center;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    .offset-header h3 {
+        color: #2e7d32;
+        font-size: 1.6rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+        position: relative;
+        display: inline-block;
+    }
+    
+    .offset-header h3::after {
+        content: '';
+        position: absolute;
+        bottom: -5px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #4CAF50, transparent);
+    }
+    
+    .leaves-decoration {
+        position: absolute;
+        top: -15px;
+        right: -15px;
+        font-size: 3rem;
+        opacity: 0.2;
+        transform-origin: center;
+        animation: growAndShrink 4s ease-in-out infinite;
+    }
+    
+    .offset-description {
+        text-align: center;
+        color: #37474f;
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+    }
+    
+    .offset-options-container {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    
+    .offset-option-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        width: 280px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: carbonOffsetFadeIn 0.7s ease-out forwards;
+        opacity: 0;
+    }
+    
+    .offset-option-card:nth-child(1) { animation-delay: 0.1s; }
+    .offset-option-card:nth-child(2) { animation-delay: 0.2s; }
+    .offset-option-card:nth-child(3) { animation-delay: 0.3s; }
+    .offset-option-card:nth-child(4) { animation-delay: 0.4s; }
+    
+    .offset-option-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+    
+    .offset-option-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+        display: inline-block;
+        animation: greenWave 3s ease-in-out infinite;
+    }
+    
+    .offset-option-name {
+        font-weight: 600;
+        color: #2e7d32;
+        font-size: 1.2rem;
+        margin-bottom: 8px;
+        position: relative;
+    }
+    
+    .offset-option-name::after {
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        width: 40px;
+        height: 2px;
+        background-color: #4CAF50;
+    }
+    
+    .offset-option-description {
+        color: #546e7a;
+        margin-bottom: 15px;
+        font-size: 0.95rem;
+    }
+    
+    .offset-option-impact {
+        background-color: #e8f5e9;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .offset-option-impact::before {
+        content: "🌱";
+        margin-right: 8px;
+        animation: leafShimmer 2s infinite;
+    }
+    
+    .offset-option-cost {
+        font-weight: 600;
+        color: #2e7d32;
+        font-size: 1.2rem;
+        margin-top: auto;
+    }
+    
+    .offset-option-button {
+        background: linear-gradient(90deg, #4CAF50, #81C784);
+        color: white;
+        border: none;
+        border-radius: 30px;
+        padding: 10px 20px;
+        font-weight: 500;
+        margin-top: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+        animation: pulseGreen 2s infinite;
+    }
+    
+    .offset-option-button:hover {
+        background: linear-gradient(90deg, #388E3C, #66BB6A);
+        transform: scale(1.05);
+    }
+    
+    .offset-progress-container {
+        text-align: center;
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+    }
+    
+    .offset-progress-icon {
+        font-size: 1.5rem;
+        margin-right: 10px;
+        display: inline-block;
+        animation: greenWave 2s ease-in-out infinite;
+    }
+    
+    .offset-background-decoration {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        opacity: 0.05;
+        pointer-events: none;
+    }
+    
+    .spinning-earth {
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        font-size: 6rem;
+        opacity: 0.1;
+        animation: slowSpin 20s linear infinite;
+    }
+    
+    .offset-footer {
+        text-align: center;
+        font-size: 0.9rem;
+        color: #558b2f;
+        margin-top: 15px;
+        font-style: italic;
+    }
+    
+    /* Tree animation elements */
+    .tree-animation-container {
+        height: 50px;
+        margin-top: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .tree {
+        font-size: 1.8rem;
+        margin: 0 5px;
+        animation: greenWave 2s ease-in-out infinite;
+    }
+    
+    .tree:nth-child(1) { animation-delay: 0s; }
+    .tree:nth-child(2) { animation-delay: 0.5s; }
+    .tree:nth-child(3) { animation-delay: 1s; }
+    .tree:nth-child(4) { animation-delay: 1.5s; }
+    .tree:nth-child(5) { animation-delay: 2s; }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Begin the container
+    st.markdown('<div class="carbon-offset-container">', unsafe_allow_html=True)
+    
+    # Add a spinning earth in the background
+    st.markdown('<div class="spinning-earth">🌍</div>', unsafe_allow_html=True)
+    
+    # Header
+    st.markdown("""
+    <div class="offset-header">
+        <span class="leaves-decoration">🍃</span>
+        <h3>🌱 Carbon Offset Opportunities 🌱</h3>
+        <p class="offset-description">Make a positive environmental impact with just one click!</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Display tree animation
+    st.markdown('<div class="tree-animation-container">', unsafe_allow_html=True)
+    
+    # Only show up to 5 trees, regardless of how many are needed for offset
+    tree_count = min(5, offset_options['trees'])
+    for i in range(tree_count):
+        st.markdown(f'<div class="tree">🌳</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close tree animation container
+    
+    # Options container
+    st.markdown('<div class="offset-options-container">', unsafe_allow_html=True)
+    
+    # Display each offset option as a card
+    for option in offset_options['suggestions']:
+        option_id = option['name'].lower().replace(' ', '_')
+        
+        st.markdown(f"""
+        <div class="offset-option-card">
+            <div class="offset-option-icon">{option['icon']}</div>
+            <div class="offset-option-name">{option['name']}</div>
+            <div class="offset-option-description">{option['description']}</div>
+            <div class="offset-option-impact">{option['impact']}</div>
+            <div class="offset-option-cost">${option['cost']:.2f}</div>
+            <button class="offset-option-button" onclick="alert('Thank you for your interest in offsetting your carbon footprint!')">
+                Offset Now
+            </button>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Add a footer
+    st.markdown("""
+    <div class="offset-footer">
+        Carbon offset calculations are estimates. For actual offsetting, we'd connect to verified carbon offset providers.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # Close options container
+    st.markdown('</div>', unsafe_allow_html=True)  # Close main container
+    
+    # Also add a regular Streamlit button for actual functionality (since the HTML button doesn't work with Streamlit)
+    st.markdown("### Offset Your Carbon Footprint")
+    
+    # Create a row of buttons for each offset option
+    cols = st.columns(len(offset_options['suggestions']))
+    
+    for i, option in enumerate(offset_options['suggestions']):
+        with cols[i]:
+            if st.button(f"Offset with {option['name']} (${option['cost']:.2f})", key=f"offset_btn_{i}"):
+                # Save offset in session state
+                st.session_state.offset_selected = option['name']
+                st.session_state.offset_amount = option['cost']
+                
+                # Add to offset history
+                import datetime
+                offset_record = {
+                    'date': datetime.datetime.now().strftime('%Y-%m-%d'),
+                    'option': option['name'],
+                    'amount': option['cost'],
+                    'co2_kg': co2_emissions,
+                    'icon': option['icon']
+                }
+                st.session_state.carbon_offsets.append(offset_record)
+                
+                # Update total offset
+                st.session_state.total_offset += option['cost']
+                
+                # Show success message with confirmation animation
+                st.success(f"Thank you for offsetting your carbon footprint with {option['name']}! This would cost ${option['cost']:.2f} with a real provider.")
+                
+                # Show confetti animation
+                st.balloons()
 
 def display_journey_summary(journey_data):
     """Display a personalized journey summary with cute icons and engaging visualizations"""
@@ -340,6 +705,28 @@ def display_journey_summary(journey_data):
             background-color: rgba(67, 97, 238, 0.2);
             transform: translateY(-3px);
         }
+        
+        .offset-button {
+            display: inline-block;
+            background: linear-gradient(90deg, #4CAF50, #66BB6A);
+            color: white;
+            font-weight: 500;
+            border-radius: 30px;
+            padding: 10px 20px;
+            margin-top: 15px;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1.5s ease-out;
+        }
+        
+        .offset-button:hover {
+            background: linear-gradient(90deg, #388E3C, #4CAF50);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
         </style>
         """, unsafe_allow_html=True)
         
@@ -396,6 +783,7 @@ def display_journey_summary(journey_data):
                 """, unsafe_allow_html=True)
         
         # Display fuel info if available
+        co2 = 0
         if journey_data.get('Fuel_Consumption') and journey_data['Fuel_Consumption'] > 0:
             fuel_consumption = journey_data['Fuel_Consumption']
             fuel_economy = journey_data['Distance'] / fuel_consumption
@@ -474,14 +862,32 @@ def display_journey_summary(journey_data):
             fun_fact = summary_parts[-1]  # Usually the last one is a fun fact
             st.markdown(f'<div class="fact-box">{fun_fact}</div>', unsafe_allow_html=True)
         
-        # Add a footer
-        st.markdown('<div class="journey-footer">Track more journeys to improve your insights and eco-driving score!</div>', unsafe_allow_html=True)
+        # Add a footer with carbon offset link if CO2 emissions exist
+        if co2 > 0:
+            st.markdown(f"""
+            <div class="journey-footer">
+                Track more journeys to improve your insights and eco-driving score!
+                <br><br>
+                <a class="offset-button" href="#" onclick="setTimeout(function() {{ document.getElementById('carbon-offset-section').scrollIntoView(); }}, 100); return false;">
+                    🌱 Offset Your Carbon Footprint ({co2:.1f} kg CO₂)
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="journey-footer">Track more journeys to improve your insights and eco-driving score!</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)  # Close insight-section
         st.markdown('</div>', unsafe_allow_html=True)  # Close journey-card
-        
+    
     # Add a separator
     st.markdown("<hr style='margin: 30px 0; border: 0; height: 1px; background: linear-gradient(to right, transparent, #4361EE, transparent);'>", unsafe_allow_html=True)
+    
+    # Carbon offset section (if emissions exist)
+    if co2 > 0:
+        st.markdown('<div id="carbon-offset-section"></div>', unsafe_allow_html=True)  # Anchor for scrolling
+        # Add carbon offset options
+        if st.button("🌿 View Carbon Offset Options", key="view_offset_options", help="See how you can offset the carbon footprint of this journey"):
+            display_carbon_offset_options(co2)
 
 def show_journey_form(df):
     # Apply form styling
@@ -1041,6 +1447,16 @@ def show_statistics(df):
             </div>
             """, unsafe_allow_html=True)
         
+        # Add carbon offset button
+        st.markdown("""
+        <div style='text-align: center; margin-top: 20px;'>
+            <div style='font-weight: 600; color: #333; margin-bottom: 10px;'>Ready to make a difference?</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🌿 View Carbon Offset Options", key="stats_offset_button"):
+            display_carbon_offset_options(stats['co2_emissions'])
+        
         st.markdown("</div>", unsafe_allow_html=True)
     
     # Monthly distance chart in its own styled container
@@ -1085,6 +1501,133 @@ def show_statistics(df):
     
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Add carbon offset history section if there are any offsets
+    if st.session_state.carbon_offsets:
+        st.markdown("<div class='chart-container' style='border-left: 4px solid #4CAF50;'>", unsafe_allow_html=True)
+        st.markdown("<p class='stats-section-title'>🌿 Your Carbon Offset History</p>", unsafe_allow_html=True)
+        
+        # Display total offset amount
+        st.markdown(f"""
+        <div style='text-align: center; padding: 15px; background-color: #e8f5e9; border-radius: 10px; margin-bottom: 20px;'>
+            <div style='font-size: 1.2rem; color: #2e7d32; margin-bottom: 5px;'>Total Carbon Offset Contribution</div>
+            <div style='font-size: 2.5rem; font-weight: bold; color: #2e7d32;'>${st.session_state.total_offset:.2f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display offset history in a table with animations
+        st.markdown("""
+        <style>
+        .offset-history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .offset-history-table th {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 15px;
+        }
+        
+        .offset-history-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .offset-history-table tr {
+            background-color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .offset-history-table tr:hover {
+            background-color: #f9fff9;
+            transform: translateX(5px);
+        }
+        
+        .offset-history-table tr:nth-child(even) {
+            background-color: #fbfbfb;
+        }
+        
+        .offset-history-icon {
+            font-size: 1.5rem;
+            margin-right: 5px;
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
+        }
+        
+        .offset-amount {
+            font-weight: 600;
+            color: #2e7d32;
+        }
+        
+        .offset-co2 {
+            color: #555;
+            font-style: italic;
+        }
+        </style>
+        
+        <table class="offset-history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Method</th>
+                    <th>CO₂ Offset</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+        """, unsafe_allow_html=True)
+        
+        # Add each offset record to the table
+        for offset in st.session_state.carbon_offsets:
+            st.markdown(f"""
+            <tr>
+                <td>{offset['date']}</td>
+                <td><span class="offset-history-icon">{offset['icon']}</span> {offset['option']}</td>
+                <td class="offset-co2">{offset['co2_kg']:.1f} kg</td>
+                <td class="offset-amount">${offset['amount']:.2f}</td>
+            </tr>
+            """, unsafe_allow_html=True)
+            
+        st.markdown("""
+            </tbody>
+        </table>
+        """, unsafe_allow_html=True)
+        
+        # Add a fun encouragement message
+        co2_total = sum(offset['co2_kg'] for offset in st.session_state.carbon_offsets)
+        trees_planted = sum(1 for offset in st.session_state.carbon_offsets if 'Tree' in offset['option'])
+        
+        st.markdown(f"""
+        <div style='background-color: #e8f5e9; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: center;'>
+            <div style='font-weight: 600; color: #2e7d32; margin-bottom: 10px;'>Your Impact</div>
+            <div style='display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;'>
+                <div style='background-color: white; padding: 10px 20px; border-radius: 8px; min-width: 150px;'>
+                    <div style='font-size: 2rem;'>🌍</div>
+                    <div style='font-weight: 600;'>{co2_total:.1f} kg</div>
+                    <div style='font-size: 0.9rem; color: #555;'>CO₂ Offset</div>
+                </div>
+                <div style='background-color: white; padding: 10px 20px; border-radius: 8px; min-width: 150px;'>
+                    <div style='font-size: 2rem;'>🌳</div>
+                    <div style='font-weight: 600;'>{trees_planted}</div>
+                    <div style='font-size: 0.9rem; color: #555;'>Trees Planted</div>
+                </div>
+                <div style='background-color: white; padding: 10px 20px; border-radius: 8px; min-width: 150px;'>
+                    <div style='font-size: 2rem;'>💚</div>
+                    <div style='font-weight: 600;'>{len(st.session_state.carbon_offsets)}</div>
+                    <div style='font-size: 0.9rem; color: #555;'>Offset Actions</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)  # Close chart container
     
     # Add a tip or insight at the bottom
     if stats['total_journeys'] > 1:
