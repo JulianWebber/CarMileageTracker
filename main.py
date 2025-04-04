@@ -868,9 +868,15 @@ def display_journey_summary(journey_data):
             <div class="journey-footer">
                 Track more journeys to improve your insights and eco-driving score!
                 <br><br>
-                <a class="offset-button" href="#" onclick="setTimeout(function() {{ document.getElementById('carbon-offset-section').scrollIntoView(); }}, 100); return false;">
-                    🌱 Offset Your Carbon Footprint ({co2:.1f} kg CO₂)
-                </a>
+                <div style="position: relative; display: inline-block;">
+                    <div style="position: absolute; top: -15px; right: -15px; font-size: 1.2rem; animation: float 3s ease-in-out infinite;">🌿</div>
+                    <div style="position: absolute; top: -12px; left: -15px; font-size: 1.2rem; animation: float 2.5s ease-in-out infinite;">🌱</div>
+                    <a class="offset-button" href="#" onclick="setTimeout(function() {{ document.getElementById('carbon-offset-section').scrollIntoView(); }}, 100); return false;">
+                        <span style="display: inline-block; margin-right: 8px; animation: float 2s ease-in-out infinite;">🌳</span>
+                        Offset Your Carbon Footprint ({co2:.1f} kg CO₂)
+                        <span style="display: inline-block; margin-left: 8px; animation: float 2s ease-in-out infinite 0.5s;">🌍</span>
+                    </a>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -885,9 +891,52 @@ def display_journey_summary(journey_data):
     # Carbon offset section (if emissions exist)
     if co2 > 0:
         st.markdown('<div id="carbon-offset-section"></div>', unsafe_allow_html=True)  # Anchor for scrolling
-        # Add carbon offset options
-        if st.button("🌿 View Carbon Offset Options", key="view_offset_options", help="See how you can offset the carbon footprint of this journey"):
-            display_carbon_offset_options(co2)
+        
+        # Add carbon offset options with more prominent styling
+        st.markdown("""
+        <style>
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+        .eco-button-container {
+            text-align: center;
+            margin: 15px 0;
+            position: relative;
+        }
+        .eco-button-container::before {
+            content: '🌿';
+            position: absolute;
+            font-size: 1.5rem;
+            top: -10px;
+            left: 25%;
+            animation: float 3s ease-in-out infinite;
+        }
+        .eco-button-container::after {
+            content: '🌱';
+            position: absolute;
+            font-size: 1.5rem;
+            top: -5px;
+            right: 25%;
+            animation: float 2.5s ease-in-out infinite;
+        }
+        </style>
+        <div class="eco-button-container">
+            <div style="font-size: 1.2rem; margin-bottom: 5px; color: #2e7d32; font-weight: 500;">
+                Make a difference today!
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Use columns to center the button
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("💚 View Carbon Offset Options 💚", key="view_offset_options", 
+                      use_container_width=True,
+                      help="See how you can offset the carbon footprint of this journey"):
+                st.balloons()  # Show balloons for added fun
+                display_carbon_offset_options(co2)
 
 def show_journey_form(df):
     # Apply form styling
@@ -1447,15 +1496,92 @@ def show_statistics(df):
             </div>
             """, unsafe_allow_html=True)
         
-        # Add carbon offset button
+        # Add carbon offset button with playful animations
         st.markdown("""
-        <div style='text-align: center; margin-top: 20px;'>
-            <div style='font-weight: 600; color: #333; margin-bottom: 10px;'>Ready to make a difference?</div>
+        <style>
+        @keyframes growing {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes leafWave {
+            0% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+            100% { transform: rotate(-5deg); }
+        }
+        
+        .eco-card {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            animation: growing 4s infinite ease-in-out;
+        }
+        
+        .eco-card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2e7d32;
+            margin-bottom: 15px;
+            position: relative;
+            display: inline-block;
+        }
+        
+        .eco-card-title::before, .eco-card-title::after {
+            content: "🌿";
+            position: absolute;
+            top: 0;
+            font-size: 1.2rem;
+            animation: leafWave 3s infinite ease-in-out;
+        }
+        
+        .eco-card-title::before {
+            left: -30px;
+            animation-delay: 0.5s;
+        }
+        
+        .eco-card-title::after {
+            right: -30px;
+        }
+        
+        .eco-card-description {
+            color: #37474f;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+        
+        .eco-background {
+            position: absolute;
+            font-size: 8rem;
+            opacity: 0.05;
+            bottom: -30px;
+            right: -20px;
+            transform: rotate(-15deg);
+        }
+        </style>
+        
+        <div class="eco-card">
+            <div class="eco-background">🌍</div>
+            <div class="eco-card-title">Make a Green Impact</div>
+            <div class="eco-card-description">
+                Offset your carbon footprint of {stats['co2_emissions']:.1f} kg CO₂ with just one click!
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
-        if st.button("🌿 View Carbon Offset Options", key="stats_offset_button"):
-            display_carbon_offset_options(stats['co2_emissions'])
+        # Create a more visually appealing button with columns
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("💚 View Carbon Offset Options 💚", key="stats_offset_button", 
+                       use_container_width=True, 
+                       help="Explore ways to offset your carbon footprint from all journeys"):
+                st.balloons()  # Add balloons for fun
+                display_carbon_offset_options(stats['co2_emissions'])
         
         st.markdown("</div>", unsafe_allow_html=True)
     
