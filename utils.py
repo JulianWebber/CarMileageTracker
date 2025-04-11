@@ -785,16 +785,32 @@ def generate_route_optimization_suggestions(journey_data):
     
     suggestions = []
     
+    # Create a copy to avoid modifying the original
+    df = journey_data.copy()
+    
+    # Ensure Date column is datetime if it exists
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'])
+    
     # Look for frequent destinations (more than 1 visit)
-    if 'Purpose' in journey_data.columns:
-        purpose_counts = journey_data['Purpose'].value_counts()
+    if 'Purpose' in df.columns:
+        purpose_counts = df['Purpose'].value_counts()
         frequent_purposes = purpose_counts[purpose_counts > 1].index.tolist()
         
-        if frequent_purposes:
-            # Find the most efficient journey to each frequent destination
-            for purpose in frequent_purposes[:3]:  # Limit to top 3 frequent destinations
-                purpose_journeys = journey_data[journey_data['Purpose'] == purpose]
+        for purpose in frequent_purposes[:3]:  # Limit to top 3 frequent destinations
+            purpose_journeys = df[df['Purpose'] == purpose]
+            
+            # Check for frequent destinations
+            if len(purpose_journeys) >= 2:
+                avg_distance = purpose_journeys['Distance'].mean()
+                total_distance = purpose_journeys['Distance'].sum()
+                count = len(purpose_journeys)
                 
+                # Calculate potential savings (assume 15% optimization potential)
+                potential_distance_saved = total_distance * 0.15
+                potential_fuel_saved = potential_distance_saved / 12  # Assuming 12 km/L average
+                
+                # If we have fuel consumption data, calculate efficiency
                 if 'Fuel_Consumption' in purpose_journeys.columns and not purpose_journeys['Fuel_Consumption'].isna().all():
                     # Calculate efficiency for each journey to this destination
                     purpose_journeys['Efficiency'] = purpose_journeys.apply(
@@ -806,6 +822,12 @@ def generate_route_optimization_suggestions(journey_data):
                     most_efficient = purpose_journeys.loc[purpose_journeys['Efficiency'].idxmax()]
                     avg_efficiency = purpose_journeys['Efficiency'].mean()
                     
+                    # Use actual efficiency for better estimates
+                    potential_fuel_saved = potential_distance_saved / avg_efficiency
+                    
+                    # Calculate CO2 savings (2.31 kg CO2 per liter of gasoline)
+                    co2_saved = potential_fuel_saved * 2.31
+                    
                     # If the most efficient journey is significantly better than average
                     if most_efficient['Efficiency'] > (avg_efficiency * 1.1) and most_efficient['Efficiency'] > 0:
                         suggestions.append({
@@ -813,17 +835,61 @@ def generate_route_optimization_suggestions(journey_data):
                             'description': f"Your most efficient journey to {purpose} used {most_efficient['Efficiency']:.1f} km/L, " +
                                           f"which is {((most_efficient['Efficiency']/avg_efficiency)-1)*100:.0f}% better than your average. " +
                                           f"Consider taking this route more often.",
-                            'savings': f"{((most_efficient['Efficiency']/avg_efficiency)-1)*100:.0f}% fuel savings",
+                            'savings': f"Save ~{potential_fuel_saved:.1f}L fuel and {co2_saved:.1f}kg CO₂",
                             'icon': '🗺️'
+                        })
+                else:
+                    # Generate suggestion based on frequency
+                    if count >= 4:
+                        suggestions.append({
+                            'title': f'Optimize {purpose} Route',
+                            'description': f'You travel to {purpose} frequently ({count} times). Consider finding a more efficient route or carpooling to save approximately {potential_distance_saved:.1f}km.',
+                            'savings': f'Save ~{potential_fuel_saved:.1f}L fuel',
+                            'icon': '🔄'
+                        })
+                    else:
+                        suggestions.append({
+                            'title': f'Plan {purpose} Trips Better',
+                            'description': f'You\'ve made {count} trips to {purpose} with an average distance of {avg_distance:.1f}km. Combining errands or optimizing this route could reduce your travel distance.',
+                            'savings': f'Potential {potential_distance_saved:.1f}km reduction',
+                            'icon': '📍'
                         })
     
     # Look for similar distance journeys that could be combined
     if 'Date' in journey_data.columns:
-        journey_data['Date'] = pd.to_datetime(journey_data['Date'])
-        journey_data['Day'] = journey_data['Date'].dt.day_name()
+        df = journey_data.copy()
+        df['Date'] = pd.to_datetime(df['Date'])
+        df['Day'] = df['Date'].dt.day_name()
+        df['DateOnly'] = df['Date'].dt.date
         
-        # Group by day of week
-        day_groups = journey_data.groupby('Day')
+        # Check for short trips made on the same day
+        short_trips = df[df['Distance'] < 5]
+        if len(short_trips) >= 2:
+            short_trips_by_date = short_trips.groupby('DateOnly').size()
+            same_day_short_trips = short_trips_by_date[short_trips_by_date > 1].index.tolist()
+            
+            if same_day_short_trips:
+                # Count total days with multiple short trips
+                days_count = len(same_day_short_trips)
+                
+                # Filter short trips on those days
+                short_trips_to_combine = df[(df['Distance'] < 5) & (df['DateOnly'].isin(same_day_short_trips))]
+                total_short_distance = short_trips_to_combine['Distance'].sum()
+                
+                # Assume 20% distance reduction by combining trips
+                distance_saved = total_short_distance * 0.2
+                fuel_saved = distance_saved / 10  # Short trips are less efficient, assume 10 km/L
+                co2_saved = fuel_saved * 2.31
+                
+                suggestions.append({
+                    'title': 'Combine Short Errands',
+                    'description': f'On {days_count} days, you made multiple short trips (under 5km). Combining these errands could save fuel and reduce emissions, as short trips with cold engines are less efficient.',
+                    'savings': f'Save ~{fuel_saved:.1f}L fuel and {co2_saved:.1f}kg CO₂',
+                    'icon': '🔗'
+                })
+        
+        # Group by day of week for regular patterns
+        day_groups = df.groupby('Day')
         
         for day, day_journeys in day_groups:
             if len(day_journeys) > 1:
@@ -952,6 +1018,8 @@ def analyze_driving_patterns(df):
                     })
             
             # Analyze variation in efficiency
+            avg_efficiency = 0
+            variation = 0
             if len(efficiencies) >= 3:
                 avg_efficiency = sum(efficiencies) / len(efficiencies)
                 max_efficiency = max(efficiencies)
