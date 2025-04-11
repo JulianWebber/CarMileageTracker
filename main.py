@@ -215,6 +215,167 @@ def check_achievements():
         # Reset the flag
         st.session_state.show_achievement = False
 
+def display_route_optimization(stats):
+    """Display route optimization suggestions to reduce fuel usage and emissions"""
+    if not stats or stats['total_journeys'] < 3 or 'route_optimization' not in stats or not stats['route_optimization']:
+        return
+    
+    st.markdown("<div class='chart-container' style='border-left: 4px solid #3F51B5;'>", unsafe_allow_html=True)
+    st.markdown("<p class='stats-section-title'>🗺️ Smart Route Suggestions</p>", unsafe_allow_html=True)
+    
+    # Add route optimization card styles
+    st.markdown("""
+    <style>
+    @keyframes mapPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes routeAppear {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes shimmerRoute {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    .route-suggestions-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin: 20px 0;
+    }
+    
+    .route-card {
+        background: linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: routeAppear 0.5s ease-out forwards;
+    }
+    
+    .route-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .route-card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: linear-gradient(90deg, 
+            rgba(255,255,255, 0) 0%, 
+            rgba(255,255,255, 0.2) 25%, 
+            rgba(255,255,255, 0.2) 50%, 
+            rgba(255,255,255, 0) 100%);
+        background-size: 200% 100%;
+        pointer-events: none;
+        animation: shimmerRoute 3s infinite;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .route-card:hover::after {
+        opacity: 1;
+    }
+    
+    .route-icon {
+        font-size: 2.5rem;
+        animation: mapPulse 3s infinite ease;
+        color: #3F51B5;
+    }
+    
+    .route-content {
+        flex: 1;
+    }
+    
+    .route-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #3F51B5;
+        margin-bottom: 8px;
+    }
+    
+    .route-description {
+        color: #555;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+    
+    .route-savings {
+        display: inline-block;
+        background-color: #E8EAF6;
+        color: #3F51B5;
+        font-size: 0.8rem;
+        font-weight: 500;
+        padding: 5px 10px;
+        border-radius: 20px;
+    }
+    </style>
+    
+    <div class="route-suggestions-container">
+    """, unsafe_allow_html=True)
+    
+    # Display each optimization suggestion
+    for suggestion in stats['route_optimization']:
+        st.markdown(f"""
+        <div class="route-card">
+            <div class="route-icon">{suggestion['icon']}</div>
+            <div class="route-content">
+                <div class="route-title">{suggestion['title']}</div>
+                <div class="route-description">{suggestion['description']}</div>
+                <div class="route-savings">💰 {suggestion['savings']}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Add a note about route optimization benefits
+    co2_per_liter = 2.31  # kg of CO2 per liter of gasoline
+    potential_savings = 0.15  # 15% potential savings from route optimization
+    total_fuel = stats.get('total_fuel', 0)
+    
+    if total_fuel > 0:
+        fuel_saved = total_fuel * potential_savings
+        co2_saved = fuel_saved * co2_per_liter
+        
+        st.markdown(f"""
+        <div style="text-align: center; margin-top: 15px; padding: 10px; background-color: #E8EAF6; border-radius: 10px;">
+            <p style="margin-bottom: 5px; font-weight: 500; color: #3F51B5;">
+                By optimizing your routes, you could potentially save:
+            </p>
+            <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+                <div>
+                    <span style="font-size: 1.3rem; font-weight: 600; color: #3F51B5;">{fuel_saved:.1f}L</span>
+                    <div style="font-size: 0.9rem; color: #555;">Fuel</div>
+                </div>
+                <div>
+                    <span style="font-size: 1.3rem; font-weight: 600; color: #3F51B5;">${(fuel_saved * stats.get('fuel_price', 1.5)):.2f}</span>
+                    <div style="font-size: 0.9rem; color: #555;">Money</div>
+                </div>
+                <div>
+                    <span style="font-size: 1.3rem; font-weight: 600; color: #3F51B5;">{co2_saved:.1f}kg</span>
+                    <div style="font-size: 0.9rem; color: #555;">CO₂ Emissions</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # Close route suggestions container
+    st.markdown("</div>", unsafe_allow_html=True)  # Close chart container
+
 def display_sustainability_challenges(stats):
     """Display sustainability challenges and goals for eco-friendly driving"""
     if not stats or stats['total_journeys'] < 2:
@@ -2367,6 +2528,9 @@ def show_statistics(df):
     
     # Display sustainability challenges section
     display_sustainability_challenges(stats)
+    
+    # Display route optimization suggestions
+    display_route_optimization(stats)
     
     # Add a tip or insight at the bottom
     if stats['total_journeys'] > 1:

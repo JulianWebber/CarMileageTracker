@@ -771,6 +771,108 @@ def calculate_carbon_offset_options(co2_emissions):
         'suggestions': suggestions
     }
 
+def generate_route_optimization_suggestions(journey_data):
+    """
+    Generate route optimization suggestions based on journey patterns.
+    
+    Parameters:
+    - journey_data: DataFrame with journey information
+    
+    Returns a list of route optimization suggestions
+    """
+    if journey_data.empty or len(journey_data) < 3:
+        return []
+    
+    suggestions = []
+    
+    # Look for frequent destinations (more than 1 visit)
+    if 'Purpose' in journey_data.columns:
+        purpose_counts = journey_data['Purpose'].value_counts()
+        frequent_purposes = purpose_counts[purpose_counts > 1].index.tolist()
+        
+        if frequent_purposes:
+            # Find the most efficient journey to each frequent destination
+            for purpose in frequent_purposes[:3]:  # Limit to top 3 frequent destinations
+                purpose_journeys = journey_data[journey_data['Purpose'] == purpose]
+                
+                if 'Fuel_Consumption' in purpose_journeys.columns and not purpose_journeys['Fuel_Consumption'].isna().all():
+                    # Calculate efficiency for each journey to this destination
+                    purpose_journeys['Efficiency'] = purpose_journeys.apply(
+                        lambda row: row['Distance'] / row['Fuel_Consumption'] if row['Fuel_Consumption'] > 0 else 0, 
+                        axis=1
+                    )
+                    
+                    # Get the most efficient journey
+                    most_efficient = purpose_journeys.loc[purpose_journeys['Efficiency'].idxmax()]
+                    avg_efficiency = purpose_journeys['Efficiency'].mean()
+                    
+                    # If the most efficient journey is significantly better than average
+                    if most_efficient['Efficiency'] > (avg_efficiency * 1.1) and most_efficient['Efficiency'] > 0:
+                        suggestions.append({
+                            'title': f"Optimize routes to {purpose}",
+                            'description': f"Your most efficient journey to {purpose} used {most_efficient['Efficiency']:.1f} km/L, " +
+                                          f"which is {((most_efficient['Efficiency']/avg_efficiency)-1)*100:.0f}% better than your average. " +
+                                          f"Consider taking this route more often.",
+                            'savings': f"{((most_efficient['Efficiency']/avg_efficiency)-1)*100:.0f}% fuel savings",
+                            'icon': '🗺️'
+                        })
+    
+    # Look for similar distance journeys that could be combined
+    if 'Date' in journey_data.columns:
+        journey_data['Date'] = pd.to_datetime(journey_data['Date'])
+        journey_data['Day'] = journey_data['Date'].dt.day_name()
+        
+        # Group by day of week
+        day_groups = journey_data.groupby('Day')
+        
+        for day, day_journeys in day_groups:
+            if len(day_journeys) > 1:
+                # Check if there are journeys on the same day that could be combined
+                day_journeys = day_journeys.sort_values('Date')
+                
+                for i in range(len(day_journeys) - 1):
+                    j1 = day_journeys.iloc[i]
+                    j2 = day_journeys.iloc[i+1]
+                    
+                    # If journeys are typically done on the same day within a few hours
+                    time_diff = (j2['Date'] - j1['Date']).total_seconds() / 3600
+                    
+                    if 1 < time_diff < 5:  # Between 1 and 5 hours apart
+                        suggestions.append({
+                            'title': f"Combine {j1['Purpose']} and {j2['Purpose']} trips",
+                            'description': f"You often do these journeys on the same {day} within {time_diff:.1f} hours. " +
+                                          f"Combining them could save fuel and reduce emissions.",
+                            'savings': "Potential 15-20% fuel savings",
+                            'icon': '📋'
+                        })
+                        break  # Just suggest one combination per day
+    
+    # Add general route optimization tips if specific ones couldn't be generated
+    if not suggestions:
+        general_tips = [
+            {
+                'title': "Plan multi-stop journeys efficiently",
+                'description': "When running multiple errands, plan your route to minimize backtracking. Start with the farthest destination and work your way back.",
+                'savings': "Up to 10-15% distance reduction",
+                'icon': '📍'
+            },
+            {
+                'title': "Use navigation apps to avoid traffic",
+                'description': "Traffic congestion significantly increases fuel consumption. Use real-time navigation to find less congested routes.",
+                'savings': "5-10% fuel savings in urban areas",
+                'icon': '📱'
+            },
+            {
+                'title': "Optimize your commute timing",
+                'description': "If possible, adjust your travel times to avoid peak traffic hours. Even 30 minutes can make a significant difference.",
+                'savings': "Up to 15% fuel savings",
+                'icon': '⏰'
+            }
+        ]
+        suggestions.extend(general_tips[:2])  # Add a couple of general tips
+    
+    return suggestions
+
 def calculate_statistics(df):
     """Calculate journey statistics."""
     stats = {
@@ -816,5 +918,8 @@ def calculate_statistics(df):
             'Cost': 'sum'
         }).reset_index()
         stats['category_stats'] = category_stats
+    
+    # Generate route optimization suggestions
+    stats['route_optimization'] = generate_route_optimization_suggestions(df)
     
     return stats
