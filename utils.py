@@ -873,6 +873,224 @@ def generate_route_optimization_suggestions(journey_data):
     
     return suggestions
 
+def analyze_driving_patterns(df):
+    """
+    Analyze driving patterns to provide eco-driving insights.
+    
+    Parameters:
+    - df: DataFrame with journey information
+    
+    Returns a dictionary with driving pattern analysis
+    """
+    if df.empty or len(df) < 3:
+        return {}
+    
+    # Initialize analysis results
+    analysis = {
+        'efficiency_trend': 'neutral',
+        'efficiency_data': [],
+        'patterns': [],
+        'recommendations': [],
+        'eco_score': 0,
+        'improvement_potential': 0,
+        'best_practices': [],
+        'areas_to_improve': []
+    }
+    
+    # Check if we have enough fuel consumption data
+    if 'Fuel_Consumption' in df.columns and not df['Fuel_Consumption'].isna().all():
+        # Calculate efficiency for each journey
+        df_with_fuel = df[df['Fuel_Consumption'].notna() & (df['Fuel_Consumption'] > 0)]
+        if not df_with_fuel.empty:
+            df_with_fuel = df_with_fuel.copy()
+            df_with_fuel['Efficiency'] = df_with_fuel['Distance'] / df_with_fuel['Fuel_Consumption']
+            df_with_fuel = df_with_fuel.sort_values('Date')
+            
+            # Get efficiency values
+            efficiencies = df_with_fuel['Efficiency'].tolist()
+            
+            # Store efficiency data for visualization
+            analysis['efficiency_data'] = [
+                {
+                    'date': row['Date'].strftime('%Y-%m-%d') if hasattr(row['Date'], 'strftime') else str(row['Date']),
+                    'efficiency': row['Efficiency'],
+                    'distance': row['Distance'],
+                    'purpose': row['Purpose']
+                }
+                for _, row in df_with_fuel.iterrows()
+            ]
+            
+            # Check for efficiency trend
+            if len(efficiencies) >= 3:
+                # Simple trend analysis
+                first_half = efficiencies[:len(efficiencies)//2]
+                second_half = efficiencies[len(efficiencies)//2:]
+                
+                first_avg = sum(first_half) / len(first_half)
+                second_avg = sum(second_half) / len(second_half)
+                
+                if second_avg > first_avg * 1.05:
+                    analysis['efficiency_trend'] = 'improving'
+                    analysis['patterns'].append({
+                        'type': 'positive',
+                        'description': 'Your fuel efficiency is improving over time! Recent journeys show better km/L values.',
+                        'icon': '📈'
+                    })
+                elif second_avg < first_avg * 0.95:
+                    analysis['efficiency_trend'] = 'declining'
+                    analysis['patterns'].append({
+                        'type': 'negative',
+                        'description': 'Your fuel efficiency has been declining recently. Check for maintenance issues or driving habit changes.',
+                        'icon': '📉'
+                    })
+                else:
+                    analysis['efficiency_trend'] = 'stable'
+                    analysis['patterns'].append({
+                        'type': 'neutral',
+                        'description': 'Your fuel efficiency has been relatively stable over time.',
+                        'icon': '📊'
+                    })
+            
+            # Analyze variation in efficiency
+            if len(efficiencies) >= 3:
+                avg_efficiency = sum(efficiencies) / len(efficiencies)
+                max_efficiency = max(efficiencies)
+                min_efficiency = min(efficiencies)
+                variation = (max_efficiency - min_efficiency) / avg_efficiency
+                
+                if variation > 0.3:  # More than 30% variation
+                    analysis['patterns'].append({
+                        'type': 'insight',
+                        'description': f'Your fuel efficiency varies significantly (up to {variation*100:.0f}%) between journeys. Consistent driving habits could help stabilize this.',
+                        'icon': '🔄'
+                    })
+                    
+                    # Find the most efficient journey
+                    most_efficient_idx = efficiencies.index(max_efficiency)
+                    most_efficient_journey = df_with_fuel.iloc[most_efficient_idx]
+                    
+                    analysis['recommendations'].append({
+                        'title': 'Replicate Your Best Efficiency',
+                        'description': f'Your journey on {most_efficient_journey["Date"]} achieved {max_efficiency:.1f} km/L. Try to remember your driving style that day.',
+                        'impact': 'high'
+                    })
+            
+            # Calculate eco score (0-100)
+            avg_efficiency = sum(efficiencies) / len(efficiencies)
+            # Score scale: 10 km/L = 50 points, 20 km/L = 100 points
+            eco_score = min(100, max(0, 50 + (avg_efficiency - 10) * 5))
+            analysis['eco_score'] = round(eco_score)
+            
+            # Calculate improvement potential
+            best_efficiency = max(efficiencies)
+            if best_efficiency > avg_efficiency:
+                potential_improvement = ((best_efficiency / avg_efficiency) - 1) * 100
+                analysis['improvement_potential'] = round(potential_improvement)
+                
+                # If significant improvement potential exists
+                if potential_improvement > 10:
+                    analysis['recommendations'].append({
+                        'title': 'Potential Efficiency Improvement',
+                        'description': f'You could improve your average efficiency by up to {potential_improvement:.0f}% based on your best recorded journey.',
+                        'impact': 'high'
+                    })
+            
+            # Identify good and bad driving patterns
+            df_with_fuel['Category'] = df_with_fuel['Category'].fillna('Other')
+            
+            # Analyze by category if we have category data
+            if 'Category' in df_with_fuel.columns:
+                category_efficiencies = df_with_fuel.groupby('Category')['Efficiency'].mean().to_dict()
+                
+                # Find best and worst performing categories
+                if len(category_efficiencies) > 1:
+                    best_category = max(category_efficiencies.items(), key=lambda x: x[1])
+                    worst_category = min(category_efficiencies.items(), key=lambda x: x[1])
+                    
+                    if best_category[1] > worst_category[1] * 1.15:  # At least 15% difference
+                        analysis['patterns'].append({
+                            'type': 'insight',
+                            'description': f'Your {best_category[0]} journeys are {((best_category[1]/worst_category[1])-1)*100:.0f}% more fuel-efficient than your {worst_category[0]} journeys.',
+                            'icon': '🔍'
+                        })
+            
+            # Analyze short trips efficiency
+            short_trips = df_with_fuel[df_with_fuel['Distance'] < 5]
+            long_trips = df_with_fuel[df_with_fuel['Distance'] >= 5]
+            
+            if not short_trips.empty and not long_trips.empty:
+                short_efficiency = short_trips['Efficiency'].mean()
+                long_efficiency = long_trips['Efficiency'].mean()
+                
+                if short_efficiency < long_efficiency * 0.85:  # Short trips at least 15% less efficient
+                    analysis['patterns'].append({
+                        'type': 'negative',
+                        'description': 'Your short trips (under 5km) are significantly less fuel-efficient. Consider combining these errands when possible.',
+                        'icon': '🔄'
+                    })
+                    
+                    analysis['recommendations'].append({
+                        'title': 'Combine Short Trips',
+                        'description': 'Short journeys with cold engines use up to 40% more fuel. Try combining multiple errands into single trips.',
+                        'impact': 'medium'
+                    })
+            
+            # Build best practices list
+            if avg_efficiency > 12:
+                analysis['best_practices'].append({
+                    'title': 'Steady Driving',
+                    'description': 'You maintain good overall efficiency, likely through steady speeds and gentle acceleration.',
+                    'icon': '🚗'
+                })
+            
+            if analysis['efficiency_trend'] == 'improving':
+                analysis['best_practices'].append({
+                    'title': 'Continuous Improvement',
+                    'description': 'You\'re consistently improving your efficiency, showing adaptive driving habits.',
+                    'icon': '📈'
+                })
+            
+            # Build areas to improve
+            if avg_efficiency < 10:
+                analysis['areas_to_improve'].append({
+                    'title': 'Overall Efficiency',
+                    'description': 'Your average fuel economy is below optimal levels. Focus on steady acceleration and maintaining constant speeds.',
+                    'icon': '⚠️'
+                })
+            
+            if variation > 0.3:
+                analysis['areas_to_improve'].append({
+                    'title': 'Consistency',
+                    'description': 'Your efficiency varies significantly between journeys. Try to develop more consistent driving habits.',
+                    'icon': '📊'
+                })
+    
+    # Add some general recommendations if we don't have enough specific ones
+    if len(analysis['recommendations']) < 2:
+        general_recommendations = [
+            {
+                'title': 'Anticipate Traffic Flow',
+                'description': 'Look ahead and anticipate stops to reduce unnecessary braking and acceleration.',
+                'impact': 'medium'
+            },
+            {
+                'title': 'Regular Vehicle Maintenance',
+                'description': 'Keep your vehicle well-maintained with regular oil changes and air filter replacements.',
+                'impact': 'medium'
+            },
+            {
+                'title': 'Optimal Highway Speed',
+                'description': 'Most vehicles achieve optimal fuel efficiency between 75-85 km/h on highways.',
+                'impact': 'high'
+            }
+        ]
+        
+        # Add general recommendations to fill up to at least 3
+        needed = max(0, 3 - len(analysis['recommendations']))
+        analysis['recommendations'].extend(general_recommendations[:needed])
+    
+    return analysis
+
 def calculate_statistics(df):
     """Calculate journey statistics."""
     stats = {
@@ -921,5 +1139,8 @@ def calculate_statistics(df):
     
     # Generate route optimization suggestions
     stats['route_optimization'] = generate_route_optimization_suggestions(df)
+    
+    # Analyze driving patterns
+    stats['driving_patterns'] = analyze_driving_patterns(df)
     
     return stats

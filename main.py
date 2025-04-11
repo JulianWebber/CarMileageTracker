@@ -215,6 +215,515 @@ def check_achievements():
         # Reset the flag
         st.session_state.show_achievement = False
 
+def display_driving_patterns_analysis(stats):
+    """Display detailed analysis of driving patterns with interactive visualizations"""
+    if (not stats or 'driving_patterns' not in stats or not stats['driving_patterns'] or 
+        'efficiency_data' not in stats['driving_patterns'] or not stats['driving_patterns']['efficiency_data']):
+        return
+    
+    patterns = stats['driving_patterns']
+    
+    st.markdown("<div class='chart-container' style='border-left: 4px solid #FF9800;'>", unsafe_allow_html=True)
+    st.markdown("<p class='stats-section-title'>🚗 Eco-Driving Pattern Analysis</p>", unsafe_allow_html=True)
+    
+    # Add driving pattern analysis styles
+    st.markdown("""
+    <style>
+    @keyframes scoreGauge {
+        from { transform: rotate(-120deg); }
+        to { transform: rotate(var(--score-angle)); }
+    }
+    
+    @keyframes patternPulse {
+        0% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.9; }
+    }
+    
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .driving-dashboard {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    
+    .eco-score-container {
+        background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+        border-radius: 15px;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .gauge-container {
+        position: relative;
+        width: 180px;
+        height: 90px;
+        margin: 15px 0;
+    }
+    
+    .gauge-background {
+        position: absolute;
+        width: 180px;
+        height: 90px;
+        border-radius: 90px 90px 0 0;
+        background: #EEEEEE;
+        overflow: hidden;
+    }
+    
+    .gauge-fill {
+        position: absolute;
+        width: 180px;
+        height: 90px;
+        border-radius: 90px 90px 0 0;
+        background: conic-gradient(
+            from 180deg,
+            #F44336 0deg 60deg,
+            #FFC107 60deg 120deg,
+            #4CAF50 120deg 180deg
+        );
+        transform-origin: center bottom;
+        transform: rotate(-120deg);
+        animation: scoreGauge 1.5s ease-out forwards;
+    }
+    
+    .gauge-center {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 150px;
+        height: 75px;
+        border-radius: 75px 75px 0 0;
+        background: white;
+    }
+    
+    .gauge-value {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #FF9800;
+    }
+    
+    .gauge-label {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #555;
+        margin-top: 15px;
+        text-align: center;
+    }
+    
+    .improvement-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background-color: #FF9800;
+        color: white;
+        font-size: 0.9rem;
+        font-weight: 500;
+        padding: 5px 12px;
+        border-radius: 20px;
+    }
+    
+    .patterns-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+    
+    .pattern-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .pattern-card.positive {
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .pattern-card.negative {
+        border-left: 4px solid #F44336;
+    }
+    
+    .pattern-card.neutral {
+        border-left: 4px solid #9E9E9E;
+    }
+    
+    .pattern-card.insight {
+        border-left: 4px solid #2196F3;
+    }
+    
+    .pattern-icon {
+        font-size: 2.2rem;
+        animation: patternPulse 3s infinite ease-in-out;
+    }
+    
+    .pattern-card.positive .pattern-icon {
+        color: #4CAF50;
+    }
+    
+    .pattern-card.negative .pattern-icon {
+        color: #F44336;
+    }
+    
+    .pattern-card.neutral .pattern-icon {
+        color: #9E9E9E;
+    }
+    
+    .pattern-card.insight .pattern-icon {
+        color: #2196F3;
+    }
+    
+    .pattern-content {
+        flex: 1;
+    }
+    
+    .pattern-description {
+        color: #555;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+    
+    .recommendations-container {
+        margin-top: 25px;
+    }
+    
+    .recommendation-title {
+        font-weight: 600;
+        color: #FF9800;
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+    }
+    
+    .recommendation-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .recommendation-item {
+        background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+        padding: 15px;
+        border-radius: 12px;
+        position: relative;
+    }
+    
+    .recommendation-item.high {
+        border-left: 4px solid #F57C00;
+    }
+    
+    .recommendation-item.medium {
+        border-left: 4px solid #FB8C00;
+    }
+    
+    .recommendation-item.low {
+        border-left: 4px solid #FFB74D;
+    }
+    
+    .recommendation-header {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+    }
+    
+    .recommendation-text {
+        color: #555;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    .impact-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .impact-badge.high {
+        background-color: #F57C00;
+        color: white;
+    }
+    
+    .impact-badge.medium {
+        background-color: #FB8C00;
+        color: white;
+    }
+    
+    .impact-badge.low {
+        background-color: #FFB74D;
+        color: white;
+    }
+    
+    .practices-container {
+        margin-top: 25px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
+    
+    .practices-column {
+        flex: 1;
+    }
+    
+    .practices-title {
+        font-weight: 600;
+        font-size: 1.05rem;
+        margin-bottom: 12px;
+    }
+    
+    .best-practices .practices-title {
+        color: #2E7D32;
+    }
+    
+    .areas-improve .practices-title {
+        color: #D32F2F;
+    }
+    
+    .practice-card {
+        background: white;
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    .best-practices .practice-card {
+        border-left: 3px solid #4CAF50;
+    }
+    
+    .areas-improve .practice-card {
+        border-left: 3px solid #F44336;
+    }
+    
+    .practice-icon {
+        font-size: 1.5rem;
+    }
+    
+    .best-practices .practice-icon {
+        color: #4CAF50;
+    }
+    
+    .areas-improve .practice-icon {
+        color: #F44336;
+    }
+    
+    .practice-content {
+        flex: 1;
+    }
+    
+    .practice-title {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 5px;
+        font-size: 0.95rem;
+    }
+    
+    .practice-description {
+        color: #666;
+        font-size: 0.85rem;
+        line-height: 1.3;
+    }
+    </style>
+    
+    <div class="driving-dashboard">
+    """, unsafe_allow_html=True)
+    
+    # Display Eco-Score gauge
+    eco_score = patterns.get('eco_score', 50)
+    improvement = patterns.get('improvement_potential', 0)
+    
+    # Calculate gauge angle: 
+    # - 0 score = -120deg (left side of gauge)
+    # - 100 score = 60deg (right side of gauge)
+    # Total range is 180deg
+    score_angle = -120 + (eco_score * 180 / 100)
+    
+    st.markdown(f"""
+    <div class="eco-score-container">
+        <h3 style="margin: 0; color: #FF9800; font-size: 1.3rem;">Your Eco-Driving Score</h3>
+        <div class="gauge-container">
+            <div class="gauge-background"></div>
+            <div class="gauge-fill" style="--score-angle: {score_angle}deg;"></div>
+            <div class="gauge-center"></div>
+            <div class="gauge-value">{eco_score}</div>
+        </div>
+        <div class="gauge-label">Based on your driving efficiency data</div>
+        
+        {f'<div class="improvement-badge">⬆️ {improvement}% improvement potential</div>' if improvement > 0 else ''}
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Display driving patterns
+    if patterns.get('patterns'):
+        st.markdown("<h3 style='margin: 25px 0 15px; color: #FF9800; font-size: 1.2rem;'>Driving Pattern Insights</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='patterns-grid'>", unsafe_allow_html=True)
+        
+        for pattern in patterns['patterns']:
+            pattern_type = pattern.get('type', 'neutral')
+            st.markdown(f"""
+            <div class="pattern-card {pattern_type}">
+                <div class="pattern-icon">{pattern['icon']}</div>
+                <div class="pattern-content">
+                    <div class="pattern-description">{pattern['description']}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Display recommendations
+    if patterns.get('recommendations'):
+        st.markdown("<div class='recommendations-container'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin: 0 0 15px; color: #FF9800; font-size: 1.2rem;'>Personalized Recommendations</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='recommendation-list'>", unsafe_allow_html=True)
+        
+        for rec in patterns['recommendations']:
+            impact = rec.get('impact', 'medium')
+            st.markdown(f"""
+            <div class="recommendation-item {impact}">
+                <div class="recommendation-header">{rec['title']}</div>
+                <div class="recommendation-text">{rec['description']}</div>
+                <div class="impact-badge {impact}">{impact.capitalize()} Impact</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Display best practices and areas to improve
+    if patterns.get('best_practices') or patterns.get('areas_to_improve'):
+        st.markdown("<div class='practices-container'>", unsafe_allow_html=True)
+        
+        # Best practices column
+        if patterns.get('best_practices'):
+            st.markdown("<div class='practices-column best-practices'>", unsafe_allow_html=True)
+            st.markdown("<div class='practices-title'>💯 Your Best Practices</div>", unsafe_allow_html=True)
+            
+            for practice in patterns['best_practices']:
+                st.markdown(f"""
+                <div class="practice-card">
+                    <div class="practice-icon">{practice['icon']}</div>
+                    <div class="practice-content">
+                        <div class="practice-title">{practice['title']}</div>
+                        <div class="practice-description">{practice['description']}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Areas to improve column
+        if patterns.get('areas_to_improve'):
+            st.markdown("<div class='practices-column areas-improve'>", unsafe_allow_html=True)
+            st.markdown("<div class='practices-title'>🔍 Areas to Improve</div>", unsafe_allow_html=True)
+            
+            for area in patterns['areas_to_improve']:
+                st.markdown(f"""
+                <div class="practice-card">
+                    <div class="practice-icon">{area['icon']}</div>
+                    <div class="practice-content">
+                        <div class="practice-title">{area['title']}</div>
+                        <div class="practice-description">{area['description']}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Display efficiency trend visualization
+    if patterns.get('efficiency_data') and len(patterns['efficiency_data']) >= 3:
+        st.markdown("<h3 style='margin: 30px 0 15px; color: #FF9800; font-size: 1.2rem;'>Fuel Efficiency Trend</h3>", unsafe_allow_html=True)
+        
+        # Convert data to DataFrame for Plotly
+        efficiency_data = patterns['efficiency_data']
+        efficiency_df = pd.DataFrame(efficiency_data)
+        efficiency_df['date'] = pd.to_datetime(efficiency_df['date'])
+        efficiency_df = efficiency_df.sort_values('date')
+        
+        # Create line chart
+        fig = px.line(
+            efficiency_df, 
+            x='date', 
+            y='efficiency',
+            markers=True,
+            line_shape='spline',
+            hover_data=['purpose', 'distance'],
+            labels={
+                'date': 'Journey Date',
+                'efficiency': 'Fuel Efficiency (km/L)',
+                'purpose': 'Purpose',
+                'distance': 'Distance (km)'
+            },
+            title=None
+        )
+        
+        # Customize the chart
+        fig.update_traces(line=dict(width=3, color='#FF9800'), marker=dict(size=8, color='#FB8C00'))
+        fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(t=10, b=0, l=0, r=0),
+            hovermode='x unified',
+            xaxis=dict(
+                title_font=dict(size=14),
+                tickfont=dict(size=12),
+                showgrid=True,
+                gridcolor='rgba(0,0,0,0.05)'
+            ),
+            yaxis=dict(
+                title_font=dict(size=14),
+                tickfont=dict(size=12),
+                showgrid=True,
+                gridcolor='rgba(0,0,0,0.05)',
+                zeroline=False
+            )
+        )
+        
+        # Add a trend line
+        fig.add_traces(
+            px.scatter(
+                efficiency_df, 
+                x='date', 
+                y='efficiency', 
+                trendline='ols'
+            ).data[1]
+        )
+        fig.data[1].line.color = '#4CAF50'
+        fig.data[1].line.dash = 'dash'
+        
+        # Display the chart
+        st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # Close driving dashboard
+    st.markdown("</div>", unsafe_allow_html=True)  # Close chart container
+
 def display_route_optimization(stats):
     """Display route optimization suggestions to reduce fuel usage and emissions"""
     if not stats or stats['total_journeys'] < 3 or 'route_optimization' not in stats or not stats['route_optimization']:
@@ -2531,6 +3040,9 @@ def show_statistics(df):
     
     # Display route optimization suggestions
     display_route_optimization(stats)
+    
+    # Display driving pattern analysis
+    display_driving_patterns_analysis(stats)
     
     # Add a tip or insight at the bottom
     if stats['total_journeys'] > 1:
