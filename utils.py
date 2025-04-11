@@ -86,6 +86,9 @@ def generate_journey_summary(journey_data):
     # Base summary parts
     summary_parts = []
     
+    # Get personalized eco-driving tips
+    eco_tip = get_personalized_eco_tips(distance, fuel, category)
+    
     # Get category icon
     category_icon = get_category_icon(category)
     
@@ -377,18 +380,22 @@ def generate_journey_summary(journey_data):
         ]
         summary_parts.append(random.choice(past_phrases))
     
-    # Add a random fun fact or driving tip
-    fun_facts = [
-        "💡 Fun fact: If this trip were walking, it would be about {:.0f} steps!".format(distance * 1300),
-        "🌈 Did you know? The average car spends 95% of its time parked!",
-        "🔋 Eco-tip: Regular maintenance can improve fuel efficiency by up to 10%",
-        "🌡️ Climate note: Properly inflated tires can save up to 3% on fuel",
-        "🚦 Driving tip: Smooth acceleration can improve fuel economy significantly",
-        "💧 Fun fact: It takes about 39,090 gallons of water to manufacture a new car",
-        "🔄 Eco-tip: Keeping your air filter clean can improve gas mileage by up to 10%",
-        "⚡ Future thought: An electric car would use about {:.1f} kWh for this journey".format(distance * 0.2)
-    ]
-    summary_parts.append(random.choice(fun_facts))
+    # Add the personalized eco-driving tip if available
+    if eco_tip:
+        summary_parts.append(f"{eco_tip['icon']} **{eco_tip['title']}**: {eco_tip['description']}")
+    # Otherwise add a random fun fact
+    else:
+        fun_facts = [
+            "💡 Fun fact: If this trip were walking, it would be about {:.0f} steps!".format(distance * 1300),
+            "🌈 Did you know? The average car spends 95% of its time parked!",
+            "🔋 Eco-tip: Regular maintenance can improve fuel efficiency by up to 10%",
+            "🌡️ Climate note: Properly inflated tires can save up to 3% on fuel",
+            "🚦 Driving tip: Smooth acceleration can improve fuel economy significantly",
+            "💧 Fun fact: It takes about 39,090 gallons of water to manufacture a new car",
+            "🔄 Eco-tip: Keeping your air filter clean can improve gas mileage by up to 10%",
+            "⚡ Future thought: An electric car would use about {:.1f} kWh for this journey".format(distance * 0.2)
+        ]
+        summary_parts.append(random.choice(fun_facts))
     
     return summary_parts
 
@@ -461,6 +468,212 @@ def calculate_co2_emissions(distance, fuel_consumption=None, vehicle_type='mediu
         
         factor = emissions_factors.get(vehicle_type.lower(), emissions_factors['medium'])
         return distance * factor
+
+def get_personalized_eco_tips(distance, fuel_consumption=None, category=None):
+    """
+    Generate personalized eco-driving tips based on journey data.
+    
+    Parameters:
+    - distance: journey distance in km
+    - fuel_consumption: fuel used in liters (optional)
+    - category: journey category (e.g., 'Commute', 'Shopping', etc.)
+    
+    Returns a dictionary with eco tip information
+    """
+    import random
+    
+    # Calculate efficiency if we have fuel data
+    efficiency = None
+    if fuel_consumption and not pd.isna(fuel_consumption) and fuel_consumption > 0 and distance > 0:
+        efficiency = distance / fuel_consumption  # km/L
+    
+    # Basic tips for all journeys
+    basic_tips = [
+        {
+            "title": "Regular Maintenance Matters",
+            "description": "A well-maintained vehicle can be up to 10% more fuel-efficient. Schedule regular check-ups for your car.",
+            "icon": "🔧",
+            "impact": "medium",
+            "category": "maintenance"
+        },
+        {
+            "title": "Tire Pressure Check",
+            "description": "Properly inflated tires can improve your fuel economy by up to 3% and extend tire life.",
+            "icon": "🚗",
+            "impact": "medium",
+            "category": "maintenance"
+        },
+        {
+            "title": "Remove Excess Weight",
+            "description": "Every extra 100 pounds in your vehicle reduces fuel economy by about 1%. Clean out unnecessary items from your trunk!",
+            "icon": "⚖️",
+            "impact": "low",
+            "category": "driving_habit"
+        },
+        {
+            "title": "Smooth Acceleration",
+            "description": "Gentle acceleration and braking can improve fuel economy by up to 30% on highways and 5% in the city.",
+            "icon": "🚦",
+            "impact": "high",
+            "category": "driving_habit"
+        },
+        {
+            "title": "Optimal Speed",
+            "description": "Most vehicles are most efficient at around 80 km/h. Fuel economy typically decreases rapidly above 90 km/h.",
+            "icon": "⏱️",
+            "impact": "medium",
+            "category": "driving_habit"
+        },
+        {
+            "title": "A/C vs. Windows",
+            "description": "At highway speeds, use A/C instead of open windows to reduce drag. In city driving, open windows are more efficient.",
+            "icon": "❄️",
+            "impact": "low",
+            "category": "comfort"
+        }
+    ]
+    
+    # Tips for short journeys
+    short_journey_tips = [
+        {
+            "title": "Consider Alternatives",
+            "description": "For trips under 5 km, walking, cycling, or electric scooters can be faster, healthier, and eco-friendly alternatives.",
+            "icon": "🚲",
+            "impact": "high",
+            "category": "alternative"
+        },
+        {
+            "title": "Combine Short Trips",
+            "description": "Combining multiple short errands into one journey can save fuel as a warm engine is more efficient.",
+            "icon": "📋",
+            "impact": "medium",
+            "category": "planning"
+        },
+        {
+            "title": "Engine Warm-Up",
+            "description": "Your car uses more fuel when the engine is cold. For short trips, your engine may never reach optimal temperature.",
+            "icon": "🔥",
+            "impact": "medium",
+            "category": "efficiency"
+        }
+    ]
+    
+    # Tips for medium to long journeys
+    long_journey_tips = [
+        {
+            "title": "Cruise Control on Highways",
+            "description": "Using cruise control on highways can save up to 6% on fuel by maintaining a steady speed.",
+            "icon": "🛣️",
+            "impact": "medium",
+            "category": "driving_habit"
+        },
+        {
+            "title": "Plan Your Route",
+            "description": "Use navigation apps to avoid traffic congestion and find the most fuel-efficient route to your destination.",
+            "icon": "🗺️",
+            "impact": "medium",
+            "category": "planning"
+        },
+        {
+            "title": "Pack Lighter",
+            "description": "For long trips, pack only what you need. Every extra kg reduces your fuel efficiency.",
+            "icon": "🧳",
+            "impact": "low",
+            "category": "planning"
+        },
+        {
+            "title": "Check Your Roof Rack",
+            "description": "A roof rack or carrier creates drag and can decrease fuel economy by up to 25%. Remove when not in use.",
+            "icon": "🔝",
+            "impact": "high",
+            "category": "aerodynamics"
+        }
+    ]
+    
+    # Tips for low efficiency journeys
+    low_efficiency_tips = [
+        {
+            "title": "Aggressive Driving Costs",
+            "description": "Speeding, rapid acceleration, and hard braking can lower gas mileage by 15-30% on highways and 10-40% in stop-and-go traffic.",
+            "icon": "🚨",
+            "impact": "high",
+            "category": "driving_habit"
+        },
+        {
+            "title": "Engine Check-Up",
+            "description": "If your fuel efficiency is consistently low, consider a diagnostic check. A problematic oxygen sensor can reduce efficiency by up to 40%.",
+            "icon": "🔍",
+            "impact": "high",
+            "category": "maintenance"
+        },
+        {
+            "title": "Air Filter Replacement",
+            "description": "A clogged air filter can reduce fuel economy by up to 10%. It's an easy and inexpensive fix!",
+            "icon": "💨",
+            "impact": "medium",
+            "category": "maintenance"
+        }
+    ]
+    
+    # Category-specific tips
+    commute_tips = [
+        {
+            "title": "Consider Carpooling",
+            "description": "Sharing your commute with coworkers can dramatically reduce your carbon footprint and save on fuel costs.",
+            "icon": "👥",
+            "impact": "high",
+            "category": "alternative"
+        },
+        {
+            "title": "Flexible Work Hours",
+            "description": "If possible, adjust your work schedule to avoid rush hour traffic for a more fuel-efficient commute.",
+            "icon": "⏰",
+            "impact": "medium",
+            "category": "planning"
+        }
+    ]
+    
+    shopping_tips = [
+        {
+            "title": "Plan Multiple Stops",
+            "description": "Plan your shopping trips to hit multiple stores in one journey, starting with the farthest location.",
+            "icon": "🛍️",
+            "impact": "medium",
+            "category": "planning"
+        },
+        {
+            "title": "Online Shopping Alternative",
+            "description": "Consider online shopping for bulky or heavy items. Delivery trucks are often more efficient than individual car trips.",
+            "icon": "🖥️",
+            "impact": "low",
+            "category": "alternative"
+        }
+    ]
+    
+    # Eligible tips based on journey data
+    eligible_tips = basic_tips.copy()
+    
+    # Add distance-based tips
+    if distance < 5:
+        eligible_tips.extend(short_journey_tips)
+    elif distance > 20:
+        eligible_tips.extend(long_journey_tips)
+    
+    # Add efficiency-based tips
+    if efficiency is not None and efficiency < 10:
+        eligible_tips.extend(low_efficiency_tips)
+    
+    # Add category-specific tips
+    if category == 'Commute':
+        eligible_tips.extend(commute_tips)
+    elif category == 'Shopping':
+        eligible_tips.extend(shopping_tips)
+    
+    # Randomly select a tip from eligible ones
+    selected_tip = random.choice(eligible_tips)
+    
+    return selected_tip
+
 
 def calculate_carbon_offset_options(co2_emissions):
     """

@@ -30,6 +30,12 @@ if 'show_achievement' not in st.session_state:
     st.session_state.show_achievement = False
 if 'achievements' not in st.session_state:
     st.session_state.achievements = []
+if 'eco_tips_shown' not in st.session_state:
+    st.session_state.eco_tips_shown = []
+if 'sustainability_challenges' not in st.session_state:
+    st.session_state.sustainability_challenges = []
+if 'active_challenge' not in st.session_state:
+    st.session_state.active_challenge = None
 if 'impact_milestones' not in st.session_state:
     # Track environmental impact milestones
     st.session_state.impact_milestones = {
@@ -208,6 +214,288 @@ def check_achievements():
         
         # Reset the flag
         st.session_state.show_achievement = False
+
+def display_sustainability_challenges(stats):
+    """Display sustainability challenges and goals for eco-friendly driving"""
+    if not stats or stats['total_journeys'] < 2:
+        return
+    
+    st.markdown("<div class='chart-container' style='border-left: 4px solid #8BC34A;'>", unsafe_allow_html=True)
+    st.markdown("<p class='stats-section-title'>🌿 Sustainability Challenges</p>", unsafe_allow_html=True)
+    
+    # Define the challenges CSS
+    st.markdown("""
+    <style>
+    @keyframes growLeaf {
+        0% { transform: scale(0.8); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes fadeInChallenge {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes progressPulse {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .challenges-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .challenge-card {
+        flex: 1 1 300px;
+        background: linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        position: relative;
+        transition: all 0.3s ease;
+        animation: fadeInChallenge 0.5s ease-out forwards;
+        overflow: hidden;
+    }
+    
+    .challenge-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .challenge-icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        display: inline-block;
+        animation: growLeaf 2s ease infinite;
+    }
+    
+    .challenge-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #2E7D32;
+        margin-bottom: 10px;
+    }
+    
+    .challenge-description {
+        color: #555;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+    
+    .challenge-progress-container {
+        height: 12px;
+        background-color: #E0E0E0;
+        border-radius: 10px;
+        margin: 15px 0;
+        overflow: hidden;
+    }
+    
+    .challenge-progress-bar {
+        height: 100%;
+        border-radius: 10px;
+        background: linear-gradient(90deg, #4CAF50, #8BC34A, #4CAF50);
+        background-size: 200% 200%;
+        animation: progressPulse 3s ease infinite;
+        transition: width 1s ease;
+    }
+    
+    .challenge-status {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: #555;
+    }
+    
+    .challenge-action-btn {
+        margin-top: 15px;
+        background: linear-gradient(90deg, #4CAF50 0%, #8BC34A 100%);
+        border: none;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+    
+    .challenge-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .challenge-reward {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background-color: #FFC107;
+        color: #603F00;
+        font-size: 0.8rem;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-weight: 500;
+    }
+    </style>
+    
+    <div class="challenges-container">
+    """, unsafe_allow_html=True)
+    
+    # Define available challenges based on user stats
+    avg_fuel_economy = stats.get('fuel_economy', 0)
+    total_distance = stats.get('total_distance', 0)
+    total_co2 = stats.get('co2_emissions', 0)
+    total_offset = st.session_state.total_offset
+    offset_percentage = (total_offset / total_co2 * 100) if total_co2 > 0 else 0
+    
+    # Fuel efficiency challenge
+    if avg_fuel_economy > 0:
+        current_efficiency = avg_fuel_economy
+        target_efficiency = max(15, current_efficiency * 1.1)  # 10% improvement or at least 15 km/L
+        progress_percentage = min(100, (current_efficiency / target_efficiency) * 100)
+        
+        st.markdown(f"""
+        <div class="challenge-card">
+            <div class="challenge-reward">Badge: Eco Driver</div>
+            <div class="challenge-icon">🚙</div>
+            <div class="challenge-title">Fuel Efficiency Master</div>
+            <div class="challenge-description">
+                Improve your average fuel economy to {target_efficiency:.1f} km/L. 
+                Currently at {current_efficiency:.1f} km/L.
+            </div>
+            <div class="challenge-progress-container">
+                <div class="challenge-progress-bar" style="width: {progress_percentage}%;"></div>
+            </div>
+            <div class="challenge-status">
+                <span>{current_efficiency:.1f} km/L</span>
+                <span>{target_efficiency:.1f} km/L</span>
+            </div>
+            <div class="challenge-description">
+                <b>Tips:</b> Maintain steady speeds, avoid rapid acceleration, and check tire pressure.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Carbon offset challenge
+    if total_co2 > 0:
+        st.markdown(f"""
+        <div class="challenge-card">
+            <div class="challenge-reward">Badge: Carbon Neutralizer</div>
+            <div class="challenge-icon">🌍</div>
+            <div class="challenge-title">Carbon Neutral Driver</div>
+            <div class="challenge-description">
+                Offset 100% of your carbon emissions through green actions.
+                Currently offset: {offset_percentage:.1f}% of your {total_co2:.1f}kg CO₂.
+            </div>
+            <div class="challenge-progress-container">
+                <div class="challenge-progress-bar" style="width: {offset_percentage}%;"></div>
+            </div>
+            <div class="challenge-status">
+                <span>{total_offset:.1f}kg</span>
+                <span>{total_co2:.1f}kg</span>
+            </div>
+            <div class="challenge-description">
+                <b>How:</b> Use the carbon offset options in the statistics page to balance your carbon footprint.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Consistent eco-driver challenge
+    if stats['total_journeys'] >= 3:
+        st.markdown(f"""
+        <div class="challenge-card">
+            <div class="challenge-reward">Badge: Eco Streak</div>
+            <div class="challenge-icon">📊</div>
+            <div class="challenge-title">Eco-Driving Streak</div>
+            <div class="challenge-description">
+                Maintain fuel efficiency above 10 km/L for 5 consecutive journeys.
+            </div>
+            <div class="challenge-progress-container">
+                <div class="challenge-progress-bar" style="width: 20%;"></div>
+            </div>
+            <div class="challenge-status">
+                <span>1/5 journeys</span>
+                <span>Goal: 5</span>
+            </div>
+            <div class="challenge-description">
+                <b>Reward:</b> Unlock detailed efficiency analytics dashboard.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # Close challenges container
+    
+    # Add a tree growth visualization based on offsets
+    trees_planted = st.session_state.impact_milestones['trees_planted']
+    if trees_planted > 0:
+        st.markdown("<p class='stats-section-title' style='margin-top: 25px;'>🌳 Your Forest Growth</p>", unsafe_allow_html=True)
+        
+        st.markdown("""
+        <style>
+        @keyframes treeGrow {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .forest-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            border-radius: 15px;
+        }
+        
+        .tree {
+            font-size: 3rem;
+            animation: treeGrow 3s ease infinite;
+            animation-delay: calc(var(--i) * 0.5s);
+        }
+        </style>
+        
+        <div class="forest-container">
+        """, unsafe_allow_html=True)
+        
+        # Display trees with staggered animations
+        for i in range(min(15, trees_planted)):  # Limit to 15 trees to avoid overcrowding
+            tree_size = 3 + (i % 4) * 0.5  # Vary tree sizes
+            st.markdown(f"""
+            <div class="tree" style="--i: {i}; font-size: {tree_size}rem;">
+                {['🌱', '🌿', '🌲', '🌳'][i % 4]}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # If more than 15 trees, show a message
+        if trees_planted > 15:
+            st.markdown(f"""
+            <div style="text-align: center; margin-top: 10px; color: #2E7D32;">
+                <b>+{trees_planted - 15} more trees in your forest</b>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Show CO2 absorbed by the forest
+        co2_absorbed = trees_planted * 21  # 21kg per tree per year
+        st.markdown(f"""
+        <div style="text-align: center; margin-top: 15px;">
+            <div style="font-size: 1.2rem; font-weight: 600; color: #2E7D32;">
+                Your forest absorbs approximately {co2_absorbed}kg of CO₂ per year! 
+            </div>
+            <div style="font-size: 0.9rem; color: #558B2F; margin-top: 5px;">
+                That's equivalent to driving approximately {co2_absorbed * 5.3:.0f}km in an average car.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)  # Close forest container
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # Close sustainability challenges container
 
 def display_achievements_dashboard():
     """Display the environmental achievements dashboard"""
@@ -1352,7 +1640,7 @@ def show_journey_form(df):
             with col1:
                 journey_date = st.date_input(
                     "📅 Journey Date",
-                    max_value=datetime.now().date()
+                    max_value=datetime.datetime.now().date()
                 )
                 start_reading = st.number_input(
                     "🔢 Starting Odometer Reading (km)",
@@ -2076,6 +2364,9 @@ def show_statistics(df):
     # Display the achievements dashboard if there are any achievements
     if st.session_state.achievements:
         display_achievements_dashboard()
+    
+    # Display sustainability challenges section
+    display_sustainability_challenges(stats)
     
     # Add a tip or insight at the bottom
     if stats['total_journeys'] > 1:
