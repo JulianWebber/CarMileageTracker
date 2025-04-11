@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+import datetime
 import os
 import utils
 from utils import load_data, save_data, calculate_statistics, validate_input, generate_journey_summary
@@ -26,6 +26,318 @@ if 'offset_amount' not in st.session_state:
     st.session_state.offset_amount = 0
 if 'total_offset' not in st.session_state:
     st.session_state.total_offset = 0
+if 'show_achievement' not in st.session_state:
+    st.session_state.show_achievement = False
+if 'achievements' not in st.session_state:
+    st.session_state.achievements = []
+if 'impact_milestones' not in st.session_state:
+    # Track environmental impact milestones
+    st.session_state.impact_milestones = {
+        'trees_planted': 0,
+        'co2_offset': 0,
+        'offset_actions': 0,
+        'badges_earned': []
+    }
+
+def update_impact_milestones(offset_option, co2_emissions):
+    """Update the environmental impact milestones based on the offset action"""
+    # Update CO2 offset total
+    st.session_state.impact_milestones['co2_offset'] += co2_emissions
+    
+    # Update offset actions count
+    st.session_state.impact_milestones['offset_actions'] += 1
+    
+    # Update trees planted if applicable
+    if 'Tree' in offset_option['name']:
+        st.session_state.impact_milestones['trees_planted'] += 1
+    
+    # Check for new badges
+    current_badges = st.session_state.impact_milestones['badges_earned']
+    
+    # First offset badge
+    if st.session_state.impact_milestones['offset_actions'] == 1 and 'first_offset' not in current_badges:
+        st.session_state.impact_milestones['badges_earned'].append('first_offset')
+        st.session_state.achievements.append({
+            'badge': 'first_offset',
+            'title': 'Carbon Conscious',
+            'description': 'Completed your first carbon offset! 🌱',
+            'icon': '🌱',
+            'date': datetime.datetime.now().strftime('%Y-%m-%d')
+        })
+        st.session_state.show_achievement = True
+    
+    # Tree planter badge
+    if st.session_state.impact_milestones['trees_planted'] >= 5 and 'tree_planter' not in current_badges:
+        st.session_state.impact_milestones['badges_earned'].append('tree_planter')
+        st.session_state.achievements.append({
+            'badge': 'tree_planter',
+            'title': 'Tree Planter',
+            'description': 'Contributed to planting 5 trees! The forest thanks you. 🌳',
+            'icon': '🌳',
+            'date': datetime.datetime.now().strftime('%Y-%m-%d')
+        })
+        st.session_state.show_achievement = True
+    
+    # Climate champion badge
+    if st.session_state.impact_milestones['co2_offset'] >= 50 and 'climate_champion' not in current_badges:
+        st.session_state.impact_milestones['badges_earned'].append('climate_champion')
+        st.session_state.achievements.append({
+            'badge': 'climate_champion',
+            'title': 'Climate Champion',
+            'description': 'Offset over 50kg of CO₂! You\'re making a real difference. 🌍',
+            'icon': '🌍',
+            'date': datetime.datetime.now().strftime('%Y-%m-%d')
+        })
+        st.session_state.show_achievement = True
+    
+    # Super offsetter badge
+    if st.session_state.impact_milestones['offset_actions'] >= 10 and 'super_offsetter' not in current_badges:
+        st.session_state.impact_milestones['badges_earned'].append('super_offsetter')
+        st.session_state.achievements.append({
+            'badge': 'super_offsetter',
+            'title': 'Super Offsetter',
+            'description': 'Completed 10 carbon offset actions! You\'re on a green streak! 💚',
+            'icon': '💚',
+            'date': datetime.datetime.now().strftime('%Y-%m-%d')
+        })
+        st.session_state.show_achievement = True
+
+def check_achievements():
+    """Check and display achievements if there are any new ones"""
+    if st.session_state.show_achievement and st.session_state.achievements:
+        # Get the most recent achievement
+        achievement = st.session_state.achievements[-1]
+        
+        # Display the achievement popup
+        st.markdown("""
+        <style>
+        @keyframes achievementAppear {
+            0% { transform: translateY(100px); opacity: 0; }
+            10% { transform: translateY(0); opacity: 1; }
+            90% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(100px); opacity: 0; }
+        }
+        
+        @keyframes achievementShine {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        @keyframes achievementIconPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes achievementConfetti {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+        
+        .achievement-popup {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+            width: 300px;
+            animation: achievementAppear 4s forwards;
+        }
+        
+        .achievement-popup::before {
+            content: "";
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            z-index: -1;
+            background: linear-gradient(90deg, #ffd700, #ffec80, #ffd700);
+            background-size: 200% auto;
+            border-radius: 18px;
+            animation: achievementShine 3s linear infinite;
+        }
+        
+        .achievement-icon {
+            font-size: 3rem;
+            margin: 10px 0;
+            display: inline-block;
+            animation: achievementIconPulse 2s infinite;
+        }
+        
+        .achievement-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .achievement-description {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .achievement-confetti {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10l10 10L10 30l10 10L10 50l10 10L10 70l10 10L10 90l10 10H0V0h20l-10 10zm30 0l10 10L40 30l10 10L40 50l10 10L40 70l10 10L40 90l10 10H30V0h20l-10 10zm30 0l10 10L70 30l10 10L70 50l10 10L70 70l10 10L70 90l10 10H60V0h20l-10 10zm30 0l10 10L100 30l10 10L100 50l10 10L100 70l10 10L100 90l10 10H90V0h20l-10 10z' fill='%23ffffff' fill-opacity='0.1'/%3E%3C/svg%3E");
+            background-size: 30px 30px;
+            animation: achievementConfetti 10s linear infinite;
+            opacity: 0.6;
+            border-radius: 15px;
+        }
+        </style>
+        
+        <div class="achievement-popup">
+            <div class="achievement-confetti"></div>
+            <div>ACHIEVEMENT UNLOCKED!</div>
+            <div class="achievement-icon">{}</div>
+            <div class="achievement-title">{}</div>
+            <div class="achievement-description">{}</div>
+        </div>
+        """.format(achievement['icon'], achievement['title'], achievement['description']), unsafe_allow_html=True)
+        
+        # Reset the flag
+        st.session_state.show_achievement = False
+
+def display_achievements_dashboard():
+    """Display the environmental achievements dashboard"""
+    if not st.session_state.achievements:
+        return
+    
+    st.markdown("<div class='chart-container' style='border-left: 4px solid #FFC107;'>", unsafe_allow_html=True)
+    st.markdown("<p class='stats-section-title'>🏆 Your Green Achievements</p>", unsafe_allow_html=True)
+    
+    # Define badge styling
+    st.markdown("""
+    <style>
+    @keyframes badgeShine {
+        0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+    }
+    
+    @keyframes badgeRotate {
+        0% { transform: rotateY(0deg); }
+        100% { transform: rotateY(360deg); }
+    }
+    
+    .badges-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        margin: 20px 0;
+    }
+    
+    .badge-card {
+        background: linear-gradient(135deg, #FFFFFF 0%, #F8F8F8 100%);
+        border-radius: 15px;
+        padding: 20px;
+        width: 180px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        position: relative;
+        transition: all 0.3s ease;
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+    
+    .badge-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .badge-card:hover .badge-icon {
+        animation: badgeRotate 1s ease-in-out;
+    }
+    
+    .badge-card::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, #FFD700, #FFC107, #FFD700);
+        z-index: -1;
+        border-radius: 17px;
+        opacity: 0.7;
+        animation: badgeShine 2s infinite;
+    }
+    
+    .badge-icon {
+        font-size: 3rem;
+        margin: 10px 0;
+        display: inline-block;
+    }
+    
+    .badge-title {
+        color: #333;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin: 10px 0;
+    }
+    
+    .badge-description {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+    }
+    
+    .badge-date {
+        color: #999;
+        font-size: 0.8rem;
+        font-style: italic;
+    }
+    </style>
+    
+    <div class="badges-container">
+    """, unsafe_allow_html=True)
+    
+    # Display each badge
+    for achievement in st.session_state.achievements:
+        st.markdown(f"""
+        <div class="badge-card">
+            <div class="badge-icon">{achievement['icon']}</div>
+            <div class="badge-title">{achievement['title']}</div>
+            <div class="badge-description">{achievement['description']}</div>
+            <div class="badge-date">Earned on {achievement['date']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # Close badges container
+    
+    # Display impact summary
+    st.markdown(f"""
+    <div style='text-align: center; margin-top: 20px;'>
+        <div style='font-weight: 600; color: #333; font-size: 1.2rem; margin-bottom: 15px;'>Your Environmental Impact</div>
+        <div style='display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;'>
+            <div style='background: linear-gradient(135deg, #F1F8E9 0%, #DCEDC8 100%); padding: 15px; border-radius: 10px; width: 180px;'>
+                <div style='font-size: 2.5rem; color: #558B2F;'>{st.session_state.impact_milestones['trees_planted']}</div>
+                <div style='color: #558B2F;'>Trees Planted</div>
+            </div>
+            <div style='background: linear-gradient(135deg, #E0F2F1 0%, #B2DFDB 100%); padding: 15px; border-radius: 10px; width: 180px;'>
+                <div style='font-size: 2.5rem; color: #00695C;'>{st.session_state.impact_milestones['co2_offset']:.1f}kg</div>
+                <div style='color: #00695C;'>CO₂ Offset</div>
+            </div>
+            <div style='background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); padding: 15px; border-radius: 10px; width: 180px;'>
+                <div style='font-size: 2.5rem; color: #2E7D32;'>{st.session_state.impact_milestones['offset_actions']}</div>
+                <div style='color: #2E7D32;'>Green Actions</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # Close chart container
 
 def main():
     # Apply global styling
@@ -427,6 +739,12 @@ def display_carbon_offset_options(co2_emissions):
                 
                 # Show confetti animation
                 st.balloons()
+                
+                # Update impact milestones
+                update_impact_milestones(option, co2_emissions)
+                
+                # Check if we should display achievement
+                check_achievements()
 
 def display_journey_summary(journey_data):
     """Display a personalized journey summary with cute icons and engaging visualizations"""
@@ -1755,6 +2073,10 @@ def show_statistics(df):
         
         st.markdown("</div>", unsafe_allow_html=True)  # Close chart container
     
+    # Display the achievements dashboard if there are any achievements
+    if st.session_state.achievements:
+        display_achievements_dashboard()
+    
     # Add a tip or insight at the bottom
     if stats['total_journeys'] > 1:
         st.markdown("""
@@ -1763,6 +2085,9 @@ def show_statistics(df):
             <b>✨ Insight:</b> Keep logging your journeys to see more detailed statistics and trends over time!
         </div>
         """, unsafe_allow_html=True)
+    
+    # Check for any new achievements to display
+    check_achievements()
 
 if __name__ == "__main__":
     main()
