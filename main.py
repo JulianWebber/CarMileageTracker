@@ -4,7 +4,11 @@ import plotly.express as px
 import datetime
 import os
 import utils
-from utils import load_data, save_data, calculate_statistics, validate_input, generate_journey_summary
+from utils import (
+    load_data, save_data, calculate_statistics, validate_input, 
+    generate_journey_summary, generate_weekly_eco_challenges, 
+    update_eco_challenge_progress
+)
 
 # Page configuration
 st.set_page_config(
@@ -1327,8 +1331,14 @@ def main():
     # Sidebar styling and navigation
     with st.sidebar:
         st.markdown("<div class='sidebar-title'>📱 Navigation</div>", unsafe_allow_html=True)
-        page = st.radio("", ["Add Journey", "View History", "Statistics"], 
-                       format_func=lambda x: f"{'➕' if x=='Add Journey' else '📖' if x=='View History' else '📊'} {x}")
+        page = st.radio("", ["Add Journey", "View History", "Statistics", "Environmental Impact", "Eco-Challenges"], 
+                    format_func=lambda x: {
+                        "Add Journey": "➕ Add Journey",
+                        "View History": "📖 View History",
+                        "Statistics": "📊 Statistics",
+                        "Environmental Impact": "🌍 Environmental Impact",
+                        "Eco-Challenges": "🌱 Eco-Challenges"
+                    }.get(x, x))
     
     # Load existing data
     df = load_data()
@@ -1338,8 +1348,12 @@ def main():
         show_journey_form(df)
     elif page == "View History":
         show_journey_history(df)
-    else:
+    elif page == "Statistics":
         show_statistics(df)
+    elif page == "Environmental Impact":
+        display_achievements_dashboard()
+    elif page == "Eco-Challenges":
+        display_eco_challenges(df)
 
 def display_carbon_offset_options(co2_emissions):
     """Display carbon offset options with interactive animations."""
@@ -3055,6 +3069,327 @@ def show_statistics(df):
     
     # Check for any new achievements to display
     check_achievements()
+
+# Display the eco-challenges weekly missions
+def display_eco_challenges(df):
+    """Display gamified eco-challenges and weekly missions"""
+    st.markdown("<h2>🌍 Weekly Eco-Challenges</h2>", unsafe_allow_html=True)
+    
+    # Check if we need to initialize challenges
+    if 'weekly_challenges' not in st.session_state:
+        stats = calculate_statistics(df)
+        st.session_state.weekly_challenges = generate_weekly_eco_challenges(stats)
+        st.session_state.total_eco_points = 0
+        st.session_state.completed_challenges = []
+    
+    # Update progress on all active challenges
+    if len(df) > 0:
+        st.session_state.weekly_challenges = update_eco_challenge_progress(
+            st.session_state.weekly_challenges, 
+            df
+        )
+    
+    # Check for newly completed challenges
+    for challenge in st.session_state.weekly_challenges:
+        if challenge.get('completed', False) and challenge['id'] not in st.session_state.completed_challenges:
+            # Add points
+            st.session_state.total_eco_points += challenge.get('points', 0)
+            # Mark as counted
+            st.session_state.completed_challenges.append(challenge['id'])
+            # Set up celebration
+            st.session_state.show_achievement = True
+            st.session_state.achievement_title = f"Challenge Completed: {challenge['title']}"
+            st.session_state.achievement_description = f"You've earned {challenge['points']} eco-points!"
+            st.session_state.achievement_icon = challenge.get('icon', '🏆')
+    
+    # Display the eco points
+    st.markdown(
+        f"""
+        <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+                    padding: 15px; border-radius: 15px; text-align: center; 
+                    color: white; margin-bottom: 20px;">
+            <div style="font-size: 1.3rem; font-weight: 600; margin-bottom: 5px;">🏆 Your Eco-Points</div>
+            <div style="font-size: 2.5rem; font-weight: 700;">{st.session_state.total_eco_points}</div>
+            <div style="font-size: 0.9rem; opacity: 0.8;">Complete weekly challenges to earn more!</div>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    
+    # Style definitions for challenge cards
+    st.markdown(
+        """
+        <style>
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.8); }
+            100% { box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .eco-challenges-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .challenge-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .challenge-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .challenge-card.completed {
+            background: linear-gradient(135deg, #e9f9f0 0%, #d4f7e6 100%);
+            animation: glowPulse 2s infinite;
+        }
+        
+        .challenge-card.completed::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                rgba(255,255,255, 0) 0%, 
+                rgba(255,255,255, 0.4) 50%, 
+                rgba(255,255,255, 0) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 3s infinite;
+            pointer-events: none;
+        }
+        
+        .challenge-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .challenge-icon {
+            font-size: 2.5rem;
+            color: #28a745;
+        }
+        
+        .challenge-header-text {
+            flex: 1;
+        }
+        
+        .challenge-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #212529;
+            margin-bottom: 5px;
+        }
+        
+        .challenge-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .challenge-points {
+            background-color: #e9f9f0;
+            color: #28a745;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+        
+        .challenge-difficulty {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .difficulty-easy {
+            color: #20c997;
+        }
+        
+        .difficulty-medium {
+            color: #fd7e14;
+        }
+        
+        .difficulty-hard {
+            color: #dc3545;
+        }
+        
+        .challenge-description {
+            font-size: 1rem;
+            color: #495057;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .progress-container {
+            background-color: #e9ecef;
+            height: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            border-radius: 5px;
+            width: var(--progress-width);
+            transition: width 1s ease;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .challenge-status {
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .status-completed {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .challenge-completed-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #28a745;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+            transform: rotate(15deg);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .challenge-tip {
+            margin-top: 15px;
+            background-color: #e9f9f0;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #28a745;
+            border-left: 3px solid #28a745;
+        }
+        </style>
+        """, 
+        unsafe_allow_html=True
+    )
+    
+    # Display challenge cards
+    st.markdown('<div class="eco-challenges-container">', unsafe_allow_html=True)
+    
+    for challenge in st.session_state.weekly_challenges:
+        # Get challenge details
+        challenge_id = challenge.get('id', '')
+        title = challenge.get('title', 'Challenge')
+        description = challenge.get('description', '')
+        icon = challenge.get('icon', '🌱')
+        points = challenge.get('points', 0)
+        difficulty = challenge.get('difficulty', 'medium')
+        progress = challenge.get('progress', 0)
+        completed = challenge.get('completed', False)
+        tip = challenge.get('tips', '')
+        
+        # Difficulty display
+        difficulty_display = {
+            'easy': '⭐ Easy',
+            'medium': '⭐⭐ Medium',
+            'hard': '⭐⭐⭐ Hard'
+        }.get(difficulty, difficulty.capitalize())
+        
+        # Challenge card HTML
+        card_class = "challenge-card completed" if completed else "challenge-card"
+        
+        current_value_display = ""
+        if 'current_value' in challenge:
+            unit = challenge.get('unit', '')
+            value = challenge['current_value']
+            
+            # Format based on unit type
+            if unit == 'km/L':
+                current_value_display = f"Current: {value} km/L"
+            elif unit == 'reduction_factor':
+                current_value_display = f"Current reduction: {value}%"
+            elif unit == 'kg_co2':
+                current_value_display = f"Best day: {value} kg CO₂"
+            elif unit == 'variation':
+                current_value_display = f"Current variation: {value}%"
+            elif unit == 'streak':
+                current_value_display = f"Current streak: {value} journeys"
+            elif unit == 'days':
+                current_value_display = f"Current streak: {value} days"
+            elif unit == 'purposes':
+                current_value_display = f"Max purposes: {value}"
+            elif unit == 'percentage':
+                current_value_display = f"Current: {value}%"
+            else:
+                current_value_display = f"Current: {value}"
+        
+        # Create card HTML
+        st.markdown(
+            f"""
+            <div class="{card_class}" id="challenge-{challenge_id}">
+                {f'<div class="challenge-completed-badge">COMPLETED!</div>' if completed else ''}
+                <div class="challenge-header">
+                    <div class="challenge-icon">{icon}</div>
+                    <div class="challenge-header-text">
+                        <div class="challenge-title">{title}</div>
+                        <div class="challenge-meta">
+                            <div class="challenge-points">{points} points</div>
+                            <div class="challenge-difficulty difficulty-{difficulty}">{difficulty_display}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="challenge-description">{description}</div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar" style="--progress-width: {progress}%;"></div>
+                </div>
+                
+                <div class="progress-text">
+                    <span>{progress}% complete</span>
+                    <span>{current_value_display}</span>
+                </div>
+                
+                {f'<div class="challenge-status status-completed">✅ Challenge completed! +{points} points</div>' if completed else ''}
+                
+                <div class="challenge-tip">
+                    <strong>Tip:</strong> {tip}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Button to reset challenges (for testing)
+    if st.button("Generate New Challenges"):
+        stats = calculate_statistics(df)
+        st.session_state.weekly_challenges = generate_weekly_eco_challenges(stats)
 
 if __name__ == "__main__":
     main()

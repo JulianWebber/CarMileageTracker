@@ -1159,6 +1159,581 @@ def analyze_driving_patterns(df):
     
     return analysis
 
+def generate_weekly_eco_challenges(stats=None, current_week=None):
+    """
+    Generate weekly eco-challenges based on user driving patterns
+    
+    Parameters:
+    - stats: User driving statistics (optional)
+    - current_week: Current ISO week number (optional)
+    
+    Returns a list of weekly challenges
+    """
+    import random
+    import datetime
+    
+    # Set current week if not provided
+    if current_week is None:
+        current_week = datetime.datetime.now().isocalendar()[1]
+    
+    # Seed random with week number for consistent weekly challenges
+    random.seed(current_week * 123)
+    
+    # Define challenge categories
+    categories = ['efficiency', 'reduction', 'consistency', 'planning']
+    
+    # Default challenges by category
+    default_challenges = {
+        'efficiency': [
+            {
+                'id': 'efficiency_1',
+                'title': 'Eco-Driving Master',
+                'description': 'Maintain an average of at least 14 km/L for this week\'s journeys',
+                'target': 14.0,  # km/L
+                'unit': 'km/L',
+                'type': 'efficiency',
+                'points': 50,
+                'icon': '🔋',
+                'difficulty': 'medium',
+                'tips': 'Maintain steady speed, avoid rapid acceleration, and anticipate traffic flow to reduce braking.'
+            },
+            {
+                'id': 'efficiency_2',
+                'title': 'Highway Efficiency',
+                'description': 'Achieve 17+ km/L on a highway journey of at least 20km',
+                'target': 17.0,  # km/L
+                'unit': 'km/L',
+                'type': 'efficiency',
+                'points': 60,
+                'icon': '🛣️',
+                'difficulty': 'medium',
+                'tips': 'Use cruise control and maintain a steady speed of around 80-90 km/h for optimal efficiency.'
+            },
+            {
+                'id': 'efficiency_3',
+                'title': 'City Navigation Pro',
+                'description': 'Complete a city journey of at least 5km with 12+ km/L efficiency',
+                'target': 12.0,  # km/L
+                'unit': 'km/L',
+                'type': 'efficiency',
+                'points': 40,
+                'icon': '🏙️',
+                'difficulty': 'hard',
+                'tips': 'Avoid rush hours, take routes with fewer traffic lights, and practice gentle acceleration.'
+            }
+        ],
+        'reduction': [
+            {
+                'id': 'reduction_1',
+                'title': 'Carbon Reducer',
+                'description': 'Reduce your total CO₂ emissions by 10% compared to last week',
+                'target': 0.9,  # 90% of previous week (factor)
+                'unit': 'reduction_factor',
+                'type': 'reduction',
+                'points': 50,
+                'icon': '🌿',
+                'difficulty': 'medium',
+                'tips': 'Combine errands, carpool, or consider using public transit for some journeys.'
+            },
+            {
+                'id': 'reduction_2',
+                'title': 'Distance Optimizer',
+                'description': 'Travel at least 30km this week while using less than 2L of fuel',
+                'target': 30.0,  # km
+                'max_fuel': 2.0,  # liters
+                'unit': 'km',
+                'type': 'reduction',
+                'points': 60,
+                'icon': '📏',
+                'difficulty': 'hard',
+                'tips': 'Plan your routes carefully and focus on maximizing your fuel efficiency.'
+            },
+            {
+                'id': 'reduction_3',
+                'title': 'Minimal Impact Day',
+                'description': 'Have at least one day with journeys totaling under 0.5kg of CO₂ emissions',
+                'target': 0.5,  # kg CO2
+                'unit': 'kg_co2',
+                'type': 'reduction',
+                'points': 40,
+                'icon': '🍃',
+                'difficulty': 'medium',
+                'tips': 'Try to batch your errands or walk/bike for very short trips on this day.'
+            }
+        ],
+        'consistency': [
+            {
+                'id': 'consistency_1',
+                'title': 'Steady Driver',
+                'description': 'Keep the variation in fuel efficiency below 15% across all journeys this week',
+                'target': 0.15,  # 15% max variation
+                'unit': 'variation',
+                'type': 'consistency',
+                'points': 55,
+                'icon': '📊',
+                'difficulty': 'medium',
+                'tips': 'Focus on consistent driving habits regardless of journey type or distance.'
+            },
+            {
+                'id': 'consistency_2',
+                'title': 'Efficiency Streak',
+                'description': 'Maintain at least 12 km/L efficiency for 3 consecutive journeys',
+                'target': 12.0,  # km/L
+                'streak': 3,  # journeys
+                'unit': 'streak',
+                'type': 'consistency',
+                'points': 45,
+                'icon': '🔥',
+                'difficulty': 'medium',
+                'tips': 'Apply eco-driving techniques consistently and pay attention to road conditions.'
+            },
+            {
+                'id': 'consistency_3',
+                'title': 'Daily Improvement',
+                'description': 'Improve your average fuel efficiency each day for 3 consecutive days',
+                'target': 3,  # days
+                'unit': 'days',
+                'type': 'consistency',
+                'points': 70,
+                'icon': '📈',
+                'difficulty': 'hard',
+                'tips': 'Focus on learning from each day and making small improvements to your driving habits.'
+            }
+        ],
+        'planning': [
+            {
+                'id': 'planning_1',
+                'title': 'Errand Combiner',
+                'description': 'Complete at least 3 different purposes/destinations in a single day, with total distance under 20km',
+                'target': 3,  # purposes
+                'max_distance': 20.0,  # km
+                'unit': 'purposes',
+                'type': 'planning',
+                'points': 50,
+                'icon': '📋',
+                'difficulty': 'medium',
+                'tips': 'Plan your route efficiently to minimize backtracking and total distance.'
+            },
+            {
+                'id': 'planning_2',
+                'title': 'Rush Hour Avoider',
+                'description': 'Log all your weekday journeys outside of peak traffic hours (7-9am, 4-6pm)',
+                'target': 100,  # percentage
+                'unit': 'percentage',
+                'type': 'planning',
+                'points': 45,
+                'icon': '⏰',
+                'difficulty': 'medium',
+                'tips': 'Adjust your schedule slightly to avoid the most congested times of day.'
+            },
+            {
+                'id': 'planning_3',
+                'title': 'Weekend Warrior',
+                'description': 'Complete all your shopping and errand journeys during the weekend only',
+                'target': 100,  # percentage
+                'unit': 'percentage',
+                'type': 'planning',
+                'points': 40,
+                'icon': '🛒',
+                'difficulty': 'easy',
+                'tips': 'Make a comprehensive shopping list and plan to complete all errands in one trip.'
+            }
+        ]
+    }
+    
+    # Personalize challenges if stats are provided
+    if stats:
+        # Adjust efficiency challenges based on user's average
+        if 'fuel_economy' in stats and stats['fuel_economy'] > 0:
+            avg_economy = stats['fuel_economy']
+            
+            # Set meaningful targets based on user's current performance
+            for challenge in default_challenges['efficiency']:
+                if challenge['id'] == 'efficiency_1':
+                    # Set target at least 10% higher than user's average
+                    challenge['target'] = max(challenge['target'], round(avg_economy * 1.1, 1))
+                    challenge['description'] = f"Maintain an average of at least {challenge['target']} km/L for this week's journeys"
+    
+    # Select challenges for this week (1 from each category)
+    weekly_challenges = []
+    for category in categories:
+        category_challenges = default_challenges.get(category, [])
+        if category_challenges:
+            weekly_challenges.append(random.choice(category_challenges))
+    
+    # Add a week_id to each challenge
+    for challenge in weekly_challenges:
+        challenge['week_id'] = current_week
+        challenge['progress'] = 0
+        challenge['completed'] = False
+    
+    return weekly_challenges
+
+def update_eco_challenge_progress(challenges, journey_data, current_week=None):
+    """
+    Update progress for the active eco-challenges
+    
+    Parameters:
+    - challenges: List of active eco-challenges
+    - journey_data: DataFrame with journey information
+    - current_week: Current ISO week number (optional)
+    
+    Returns updated challenges list
+    """
+    import datetime
+    import pandas as pd
+    
+    # Set current week if not provided
+    if current_week is None:
+        current_week = datetime.datetime.now().isocalendar()[1]
+    
+    # Filter for only the current week's challenges
+    current_challenges = [c for c in challenges if c.get('week_id') == current_week]
+    
+    if not current_challenges or journey_data.empty:
+        return challenges
+    
+    # Ensure we have datetime for Date column
+    df = journey_data.copy()
+    df['Date'] = pd.to_datetime(df['Date'])
+    
+    # Filter for only journeys from this week
+    this_week_mask = df['Date'].apply(lambda d: d.isocalendar()[1] == current_week)
+    this_week_journeys = df[this_week_mask]
+    
+    if this_week_journeys.empty:
+        return challenges
+    
+    # Process each active challenge
+    for challenge in current_challenges:
+        challenge_type = challenge.get('type', '')
+        challenge_id = challenge.get('id', '')
+        
+        # Skip already completed challenges
+        if challenge.get('completed', False):
+            continue
+        
+        # Handle efficiency challenges
+        if challenge_type == 'efficiency':
+            if challenge_id == 'efficiency_1':  # Average efficiency
+                journeys_with_fuel = this_week_journeys[this_week_journeys['Fuel_Consumption'].notna() & (this_week_journeys['Fuel_Consumption'] > 0)]
+                if not journeys_with_fuel.empty:
+                    total_distance = journeys_with_fuel['Distance'].sum()
+                    total_fuel = journeys_with_fuel['Fuel_Consumption'].sum()
+                    avg_efficiency = total_distance / total_fuel if total_fuel > 0 else 0
+                    
+                    # Update progress (as percentage of target)
+                    target = challenge['target']
+                    progress = min(100, (avg_efficiency / target) * 100)
+                    challenge['progress'] = round(progress)
+                    challenge['current_value'] = round(avg_efficiency, 2)
+                    
+                    # Check if completed
+                    if avg_efficiency >= target:
+                        challenge['completed'] = True
+            
+            elif challenge_id == 'efficiency_2':  # Highway efficiency
+                # Identify highway journeys (assumption: distance >= 20km)
+                highway_journeys = this_week_journeys[(this_week_journeys['Distance'] >= 20) & 
+                                                     this_week_journeys['Fuel_Consumption'].notna() & 
+                                                     (this_week_journeys['Fuel_Consumption'] > 0)]
+                
+                if not highway_journeys.empty:
+                    # Calculate efficiency for each highway journey
+                    highway_journeys['Efficiency'] = highway_journeys['Distance'] / highway_journeys['Fuel_Consumption']
+                    best_efficiency = highway_journeys['Efficiency'].max()
+                    
+                    # Update progress (as percentage of target)
+                    target = challenge['target']
+                    progress = min(100, (best_efficiency / target) * 100)
+                    challenge['progress'] = round(progress)
+                    challenge['current_value'] = round(best_efficiency, 2)
+                    
+                    # Check if completed
+                    if best_efficiency >= target:
+                        challenge['completed'] = True
+            
+            elif challenge_id == 'efficiency_3':  # City efficiency
+                # Identify city journeys (assumption: 5km <= distance < 20km)
+                city_journeys = this_week_journeys[(this_week_journeys['Distance'] >= 5) & 
+                                                  (this_week_journeys['Distance'] < 20) & 
+                                                  this_week_journeys['Fuel_Consumption'].notna() & 
+                                                  (this_week_journeys['Fuel_Consumption'] > 0)]
+                
+                if not city_journeys.empty:
+                    # Calculate efficiency for each city journey
+                    city_journeys['Efficiency'] = city_journeys['Distance'] / city_journeys['Fuel_Consumption']
+                    best_efficiency = city_journeys['Efficiency'].max()
+                    
+                    # Update progress (as percentage of target)
+                    target = challenge['target']
+                    progress = min(100, (best_efficiency / target) * 100)
+                    challenge['progress'] = round(progress)
+                    challenge['current_value'] = round(best_efficiency, 2)
+                    
+                    # Check if completed
+                    if best_efficiency >= target:
+                        challenge['completed'] = True
+        
+        # Handle reduction challenges
+        elif challenge_type == 'reduction':
+            if challenge_id == 'reduction_1':  # Carbon reduction compared to previous week
+                # Get previous week number
+                prev_week = current_week - 1
+                if prev_week <= 0:  # Handle year boundary
+                    prev_week = 52
+                
+                # Filter for previous week's journeys
+                prev_week_mask = df['Date'].apply(lambda d: d.isocalendar()[1] == prev_week)
+                prev_week_journeys = df[prev_week_mask]
+                
+                if not prev_week_journeys.empty and not this_week_journeys.empty:
+                    # Calculate CO2 for both weeks
+                    prev_week_co2 = prev_week_journeys.apply(
+                        lambda row: calculate_co2_emissions(row['Distance'], row.get('Fuel_Consumption')),
+                        axis=1
+                    ).sum()
+                    
+                    this_week_co2 = this_week_journeys.apply(
+                        lambda row: calculate_co2_emissions(row['Distance'], row.get('Fuel_Consumption')),
+                        axis=1
+                    ).sum()
+                    
+                    if prev_week_co2 > 0:
+                        reduction_factor = 1 - (this_week_co2 / prev_week_co2)
+                        
+                        # Update progress (percentage of target reduction)
+                        target = 1 - challenge['target']  # Target is expressed as reduction percentage
+                        progress = min(100, (reduction_factor / target) * 100)
+                        challenge['progress'] = max(0, round(progress))  # Ensure progress isn't negative
+                        challenge['current_value'] = round(reduction_factor * 100, 1)  # Store as percentage
+                        
+                        # Check if completed
+                        if reduction_factor >= target:
+                            challenge['completed'] = True
+            
+            elif challenge_id == 'reduction_2':  # Distance with limited fuel
+                total_distance = this_week_journeys['Distance'].sum()
+                total_fuel = this_week_journeys['Fuel_Consumption'].sum()
+                
+                # Update progress (percentage of target distance)
+                distance_target = challenge['target']
+                fuel_limit = challenge['max_fuel']
+                
+                distance_progress = min(100, (total_distance / distance_target) * 100)
+                challenge['progress'] = round(distance_progress)
+                challenge['current_value'] = round(total_distance, 1)
+                challenge['current_fuel'] = round(total_fuel, 2)
+                
+                # Check if completed
+                if total_distance >= distance_target and total_fuel <= fuel_limit:
+                    challenge['completed'] = True
+            
+            elif challenge_id == 'reduction_3':  # Minimal impact day
+                # Group journeys by date and calculate daily CO2
+                daily_journeys = this_week_journeys.groupby(this_week_journeys['Date'].dt.date)
+                
+                min_daily_co2 = float('inf')
+                for day, day_journeys in daily_journeys:
+                    daily_co2 = day_journeys.apply(
+                        lambda row: calculate_co2_emissions(row['Distance'], row.get('Fuel_Consumption')),
+                        axis=1
+                    ).sum()
+                    
+                    if daily_co2 < min_daily_co2:
+                        min_daily_co2 = daily_co2
+                
+                if min_daily_co2 < float('inf'):
+                    # Update progress (reversed percentage of target - lower is better)
+                    target = challenge['target']
+                    progress = min(100, (target / max(min_daily_co2, 0.1)) * 100)
+                    challenge['progress'] = round(progress)
+                    challenge['current_value'] = round(min_daily_co2, 2)
+                    
+                    # Check if completed
+                    if min_daily_co2 <= target:
+                        challenge['completed'] = True
+        
+        # Handle consistency challenges
+        elif challenge_type == 'consistency':
+            if challenge_id == 'consistency_1':  # Efficiency variation
+                journeys_with_fuel = this_week_journeys[this_week_journeys['Fuel_Consumption'].notna() & (this_week_journeys['Fuel_Consumption'] > 0)]
+                
+                if len(journeys_with_fuel) >= 3:  # Need at least 3 journeys to calculate variation
+                    # Calculate efficiency for each journey
+                    journeys_with_fuel['Efficiency'] = journeys_with_fuel['Distance'] / journeys_with_fuel['Fuel_Consumption']
+                    
+                    max_eff = journeys_with_fuel['Efficiency'].max()
+                    min_eff = journeys_with_fuel['Efficiency'].min()
+                    avg_eff = journeys_with_fuel['Efficiency'].mean()
+                    
+                    # Calculate variation as (max-min)/avg
+                    if avg_eff > 0:
+                        variation = (max_eff - min_eff) / avg_eff
+                        
+                        # Update progress (reversed percentage of target - lower variation is better)
+                        target = challenge['target']
+                        progress = min(100, (target / max(variation, 0.01)) * 100)
+                        challenge['progress'] = round(progress)
+                        challenge['current_value'] = round(variation * 100, 1)  # Store as percentage
+                        
+                        # Check if completed
+                        if variation <= target:
+                            challenge['completed'] = True
+            
+            elif challenge_id == 'consistency_2':  # Efficiency streak
+                journeys_with_fuel = this_week_journeys[this_week_journeys['Fuel_Consumption'].notna() & (this_week_journeys['Fuel_Consumption'] > 0)]
+                
+                if not journeys_with_fuel.empty:
+                    # Calculate efficiency for each journey
+                    journeys_with_fuel = journeys_with_fuel.sort_values('Date')
+                    journeys_with_fuel['Efficiency'] = journeys_with_fuel['Distance'] / journeys_with_fuel['Fuel_Consumption']
+                    
+                    # Find longest streak of journeys with efficiency >= target
+                    target_efficiency = challenge['target']
+                    target_streak = challenge['streak']
+                    
+                    current_streak = 0
+                    max_streak = 0
+                    
+                    for _, journey in journeys_with_fuel.iterrows():
+                        if journey['Efficiency'] >= target_efficiency:
+                            current_streak += 1
+                            max_streak = max(max_streak, current_streak)
+                        else:
+                            current_streak = 0
+                    
+                    # Update progress
+                    progress = min(100, (max_streak / target_streak) * 100)
+                    challenge['progress'] = round(progress)
+                    challenge['current_value'] = max_streak
+                    
+                    # Check if completed
+                    if max_streak >= target_streak:
+                        challenge['completed'] = True
+            
+            elif challenge_id == 'consistency_3':  # Daily improvement
+                journeys_with_fuel = this_week_journeys[this_week_journeys['Fuel_Consumption'].notna() & (this_week_journeys['Fuel_Consumption'] > 0)]
+                
+                if not journeys_with_fuel.empty:
+                    # Group by day and calculate average efficiency
+                    daily_journeys = journeys_with_fuel.groupby(journeys_with_fuel['Date'].dt.date)
+                    daily_efficiency = {}
+                    
+                    for day, day_journeys in daily_journeys:
+                        total_distance = day_journeys['Distance'].sum()
+                        total_fuel = day_journeys['Fuel_Consumption'].sum()
+                        daily_efficiency[day] = total_distance / total_fuel if total_fuel > 0 else 0
+                    
+                    # Sort days and check for consecutive improvements
+                    sorted_days = sorted(daily_efficiency.keys())
+                    
+                    current_streak = 0
+                    max_streak = 0
+                    
+                    for i in range(1, len(sorted_days)):
+                        if daily_efficiency[sorted_days[i]] > daily_efficiency[sorted_days[i-1]]:
+                            current_streak += 1
+                            max_streak = max(max_streak, current_streak)
+                        else:
+                            current_streak = 0
+                    
+                    # Add 1 to max_streak since we're counting transitions
+                    max_streak += 1
+                    
+                    # Update progress
+                    target_days = challenge['target']
+                    progress = min(100, (max_streak / target_days) * 100)
+                    challenge['progress'] = round(progress)
+                    challenge['current_value'] = max_streak
+                    
+                    # Check if completed
+                    if max_streak >= target_days:
+                        challenge['completed'] = True
+        
+        # Handle planning challenges
+        elif challenge_type == 'planning':
+            if challenge_id == 'planning_1':  # Errand combiner
+                # Group journeys by day
+                daily_journeys = this_week_journeys.groupby(this_week_journeys['Date'].dt.date)
+                
+                max_purposes = 0
+                has_qualifying_day = False
+                
+                for day, day_journeys in daily_journeys:
+                    # Check unique purposes
+                    if 'Purpose' in day_journeys.columns:
+                        unique_purposes = day_journeys['Purpose'].nunique()
+                        day_distance = day_journeys['Distance'].sum()
+                        
+                        if unique_purposes >= challenge['target'] and day_distance <= challenge['max_distance']:
+                            has_qualifying_day = True
+                            max_purposes = max(max_purposes, unique_purposes)
+                
+                # Update progress (based on number of purposes)
+                target_purposes = challenge['target']
+                progress = min(100, (max_purposes / target_purposes) * 100)
+                challenge['progress'] = round(progress)
+                challenge['current_value'] = max_purposes
+                
+                # Check if completed
+                if has_qualifying_day:
+                    challenge['completed'] = True
+            
+            elif challenge_id == 'planning_2':  # Rush hour avoider
+                weekday_journeys = this_week_journeys[this_week_journeys['Date'].dt.dayofweek < 5]  # Monday to Friday
+                
+                if not weekday_journeys.empty:
+                    # Check if journeys are outside rush hours
+                    weekday_journeys['Hour'] = weekday_journeys['Date'].dt.hour
+                    
+                    total_journeys = len(weekday_journeys)
+                    non_rush_journeys = len(weekday_journeys[
+                        ~((weekday_journeys['Hour'] >= 7) & (weekday_journeys['Hour'] < 9)) &
+                        ~((weekday_journeys['Hour'] >= 16) & (weekday_journeys['Hour'] < 18))
+                    ])
+                    
+                    # Calculate percentage of non-rush hour journeys
+                    if total_journeys > 0:
+                        non_rush_percentage = (non_rush_journeys / total_journeys) * 100
+                        
+                        # Update progress
+                        challenge['progress'] = round(non_rush_percentage)
+                        challenge['current_value'] = round(non_rush_percentage, 1)
+                        
+                        # Check if completed
+                        if non_rush_percentage >= challenge['target']:
+                            challenge['completed'] = True
+            
+            elif challenge_id == 'planning_3':  # Weekend warrior
+                # Filter for shopping/errand journeys
+                shopping_categories = ['Shopping', 'Errands', 'Groceries']
+                
+                if 'Category' in this_week_journeys.columns:
+                    shopping_journeys = this_week_journeys[this_week_journeys['Category'].isin(shopping_categories)]
+                elif 'Purpose' in this_week_journeys.columns:
+                    # Try to identify shopping journeys by purpose if category not available
+                    shopping_journeys = this_week_journeys[this_week_journeys['Purpose'].str.contains('|'.join(shopping_categories), case=False, na=False)]
+                else:
+                    shopping_journeys = pd.DataFrame()
+                
+                if not shopping_journeys.empty:
+                    total_shopping = len(shopping_journeys)
+                    weekend_shopping = len(shopping_journeys[shopping_journeys['Date'].dt.dayofweek >= 5])  # Saturday and Sunday
+                    
+                    # Calculate percentage of weekend shopping
+                    weekend_percentage = (weekend_shopping / total_shopping) * 100 if total_shopping > 0 else 0
+                    
+                    # Update progress
+                    challenge['progress'] = round(weekend_percentage)
+                    challenge['current_value'] = round(weekend_percentage, 1)
+                    
+                    # Check if completed
+                    if weekend_percentage >= challenge['target']:
+                        challenge['completed'] = True
+    
+    return challenges
+
 def calculate_statistics(df):
     """Calculate journey statistics."""
     stats = {
