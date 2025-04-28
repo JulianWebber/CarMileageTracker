@@ -1734,6 +1734,72 @@ def update_eco_challenge_progress(challenges, journey_data, current_week=None):
     
     return challenges
 
+def generate_leaderboard_data(user_points=0):
+    """
+    Generate mock leaderboard data for the eco-challenges feature
+    
+    Parameters:
+    - user_points: The current user's eco-points
+    
+    Returns a list of leaderboard entries sorted by points
+    """
+    import random
+    
+    # Set seed for consistent but varied leaderboard
+    random.seed(42)
+    
+    # Define possible usernames
+    usernames = [
+        "EcoDriver", "GreenCommuter", "SustainableTraveler", "EarthGuardian",
+        "EcoWarrior", "GreenJourney", "ClimateHero", "EcoCruiser",
+        "PlanetSaver", "GreenRider", "FuelOptimizer", "CarbonCutter"
+    ]
+    
+    # Define possible avatar emojis
+    avatars = ["🧑", "👩", "🧔", "👨‍🦱", "👩‍🦱", "👨‍🦰", "👴", "👵", "👦", "👧"]
+    
+    # Create leaderboard entries (excluding current user who will be added separately)
+    leaderboard = []
+    
+    # Generate 9 random entries
+    for i in range(9):
+        entry = {
+            "username": f"{random.choice(usernames)}{random.randint(1, 999)}",
+            "avatar": random.choice(avatars),
+            "points": random.randint(10, 1000),
+            "level": 0,
+            "challenges_completed": random.randint(0, 20),
+            "streak": random.randint(0, 5),
+            "is_current_user": False
+        }
+        
+        # Calculate level (1 level per 100 points)
+        entry["level"] = max(1, entry["points"] // 100)
+        
+        leaderboard.append(entry)
+    
+    # Add current user entry
+    user_entry = {
+        "username": "You",
+        "avatar": "😎",
+        "points": user_points,
+        "level": max(1, user_points // 100),
+        "challenges_completed": 0,  # This would be calculated from actual data in a real app
+        "streak": 0,  # This would be calculated from actual data in a real app
+        "is_current_user": True
+    }
+    
+    leaderboard.append(user_entry)
+    
+    # Sort leaderboard by points (descending)
+    leaderboard = sorted(leaderboard, key=lambda x: x["points"], reverse=True)
+    
+    # Add rank to each entry
+    for i, entry in enumerate(leaderboard):
+        entry["rank"] = i + 1
+    
+    return leaderboard
+
 def calculate_statistics(df):
     """Calculate journey statistics."""
     stats = {

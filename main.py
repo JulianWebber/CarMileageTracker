@@ -7,7 +7,7 @@ import utils
 from utils import (
     load_data, save_data, calculate_statistics, validate_input, 
     generate_journey_summary, generate_weekly_eco_challenges, 
-    update_eco_challenge_progress
+    update_eco_challenge_progress, generate_leaderboard_data
 )
 
 # Page configuration
@@ -218,6 +218,185 @@ def check_achievements():
         
         # Reset the flag
         st.session_state.show_achievement = False
+
+def display_leaderboard(user_points):
+    """Display eco-challenge leaderboard with animated rankings"""
+    st.markdown("### 🏆 Eco-Leaderboard")
+    st.markdown("See how your eco-driving performance compares with others!")
+    
+    # Generate leaderboard data
+    leaderboard = generate_leaderboard_data(user_points)
+    
+    # Custom CSS for leaderboard
+    st.markdown("""
+    <style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes highlight {
+        0% { background-color: rgba(76, 175, 80, 0.3); }
+        50% { background-color: rgba(76, 175, 80, 0.1); }
+        100% { background-color: rgba(76, 175, 80, 0.3); }
+    }
+    
+    .leaderboard-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        overflow: hidden;
+        margin: 20px 0;
+    }
+    
+    .leaderboard-header {
+        background: linear-gradient(90deg, #1E88E5, #64B5F6);
+        color: white;
+        padding: 15px 20px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+    
+    .leaderboard-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        animation: fadeInUp 0.5s ease forwards;
+        animation-delay: calc(var(--row-index) * 0.1s);
+        opacity: 0;
+    }
+    
+    .leaderboard-row.current-user {
+        background-color: rgba(76, 175, 80, 0.1);
+        animation: fadeInUp 0.5s ease forwards, highlight 2s ease infinite;
+        animation-delay: calc(var(--row-index) * 0.1s), 0.5s;
+    }
+    
+    .rank {
+        flex: 0 0 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #333;
+    }
+    
+    .rank-1 {
+        color: #FFD700;
+    }
+    
+    .rank-2 {
+        color: #C0C0C0;
+    }
+    
+    .rank-3 {
+        color: #CD7F32;
+    }
+    
+    .avatar {
+        flex: 0 0 40px;
+        font-size: 1.5rem;
+        text-align: center;
+    }
+    
+    .user-info {
+        flex: 1;
+        padding: 0 15px;
+    }
+    
+    .username {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .level-indicator {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 3px;
+    }
+    
+    .stats {
+        flex: 0 0 100px;
+        text-align: right;
+        font-weight: 500;
+        color: #1E88E5;
+    }
+    
+    .medal {
+        margin-left: 10px;
+        font-size: 1.2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Render leaderboard
+    st.markdown('<div class="leaderboard-container">', unsafe_allow_html=True)
+    st.markdown('<div class="leaderboard-header">Global Eco-Champions</div>', unsafe_allow_html=True)
+    
+    for i, entry in enumerate(leaderboard):
+        medal = ""
+        rank_class = ""
+        
+        if entry['rank'] == 1:
+            medal = "🥇"
+            rank_class = "rank-1"
+        elif entry['rank'] == 2:
+            medal = "🥈"
+            rank_class = "rank-2"
+        elif entry['rank'] == 3:
+            medal = "🥉"
+            rank_class = "rank-3"
+        
+        user_class = "current-user" if entry['is_current_user'] else ""
+        
+        st.markdown(f"""
+        <div class="leaderboard-row {user_class}" style="--row-index: {i}">
+            <div class="rank {rank_class}">{entry['rank']}</div>
+            <div class="avatar">{entry['avatar']}</div>
+            <div class="user-info">
+                <div class="username">{entry['username']}{' (YOU)' if entry['is_current_user'] else ''}</div>
+                <div class="level-indicator">Level {entry['level']} • {entry['challenges_completed']} challenges</div>
+            </div>
+            <div class="stats">{entry['points']} pts</div>
+            <div class="medal">{medal}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Tips to improve ranking
+    st.markdown("### 💡 Tips to Climb the Ranks")
+    
+    tips_cols = st.columns(3)
+    
+    tips = [
+        {"icon": "🔄", "title": "Daily Consistency", "text": "Log your journeys regularly and complete daily challenges to earn steady points."},
+        {"icon": "🎯", "title": "Focus on Challenges", "text": "Prioritize the highest-point challenges each week for maximum gains."},
+        {"icon": "🌱", "title": "Offset Actions", "text": "Carbon offset actions earn bonus points and special achievements."}
+    ]
+    
+    for i, tip in enumerate(tips):
+        with tips_cols[i]:
+            st.markdown(f"""
+            <div style='
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                padding: 15px;
+                text-align: center;
+                height: 100%;
+            '>
+                <div style='font-size: 2rem; margin-bottom: 10px;'>{tip["icon"]}</div>
+                <div style='font-weight: 500; margin-bottom: 10px;'>{tip["title"]}</div>
+                <div style='font-size: 0.9rem; color: #666;'>{tip["text"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 def display_driving_patterns_analysis(stats):
     """Display detailed analysis of driving patterns with interactive visualizations"""
@@ -3115,6 +3294,9 @@ def display_eco_challenges(df):
         """, 
         unsafe_allow_html=True
     )
+    
+    # Display the leaderboard
+    display_leaderboard(st.session_state.total_eco_points)
     
     # Style definitions for challenge cards
     st.markdown(
